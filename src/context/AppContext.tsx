@@ -1,7 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScannableItem, MOCK_SCANNABLE_ITEMS } from '../data/mockData';
-import { syncLedgerToSupabase } from '../services/supabaseService';
+import {
+  initSQLiteDB,
+  loadAllInventory,
+  saveSQLiteInventoryItem,
+  deleteSQLiteInventoryItem,
+  loadAllHistory,
+  saveSQLiteHistoryItem,
+  wipeAllSQLiteData
+} from '../services/sqliteService';
 
 export interface InventoryItem {
   id: string;
@@ -48,10 +56,6 @@ export interface AppContextType {
   setEbayClientSecret: (val: string) => Promise<void>;
   photoroomApiKey: string;
   setPhotoroomApiKey: (val: string) => Promise<void>;
-  supabaseUrl: string;
-  setSupabaseUrl: (val: string) => Promise<void>;
-  supabaseAnonKey: string;
-  setSupabaseAnonKey: (val: string) => Promise<void>;
   isLiveMode: boolean;
   setIsLiveMode: (val: boolean) => Promise<void>;
   
@@ -60,7 +64,6 @@ export interface AppContextType {
   addCapturedPhoto: (uri: string) => void;
   removeCapturedPhoto: (uri: string) => void;
   clearCapturedPhotos: () => void;
-  syncLedger: () => Promise<{ success: boolean; message: string }>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -81,35 +84,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [ebayClientId, setEbayClientIdLocal] = useState('');
   const [ebayClientSecret, setEbayClientSecretLocal] = useState('');
   const [photoroomApiKey, setPhotoroomApiKeyLocal] = useState('');
-  const [supabaseUrl, setSupabaseUrlLocal] = useState('');
-  const [supabaseAnonKey, setSupabaseAnonKeyLocal] = useState('');
   const [isLiveMode, setIsLiveModeLocal] = useState(false);
 
   // Captured Images
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
 
-  // Load state on mount
+  // Load and migrate state on mount
   useEffect(() => {
     const loadState = async () => {
       try {
+        // Initialize SQLite DB first
+        await initSQLiteDB();
+
+        // 1. Check for legacy AsyncStorage data to migrate
         const storedHistory = await AsyncStorage.getItem('@gemspotter_history');
         const storedInventory = await AsyncStorage.getItem('@gemspotter_inventory');
+        
+        let initialInventory: InventoryItem[] = [];
+        let initialHistory: ScanHistoryItem[] = [];
+
+        // Migrate inventory
+        if (storedInventory !== null) {
+          try {
+            const parsed = JSON.parse(storedInventory) as InventoryItem[];
+            for (const item of parsed) {
+              await saveSQLiteInventoryItem(item);
+            }
+            initialInventory = parsed;
+          } catch (e) {
+            console.error('Failed to migrate inventory from AsyncStorage', e);
+          }
+          await AsyncStorage.removeItem('@gemspotter_inventory');
+        } else {
+          initialInventory = await loadAllInventory();
+        }
+
+        // Migrate history
+        if (storedHistory !== null) {
+          try {
+            const parsed = JSON.parse(storedHistory) as ScanHistoryItem[];
+            for (const item of parsed) {
+              await saveSQLiteHistoryItem(item);
+            }
+            initialHistory = parsed;
+          } catch (e) {
+            console.error('Failed to migrate history from AsyncStorage', e);
+          }
+          await AsyncStorage.removeItem('@gemspotter_history');
+        } else {
+          initialHistory = await loadAllHistory();
+        }
+
+        setInventory(initialInventory);
+        setHistory(initialHistory);
+
+        // 2. Load API credentials
         const storedOpenAi = await AsyncStorage.getItem('@gemspotter_openai_key');
         const storedEbayId = await AsyncStorage.getItem('@gemspotter_ebay_client_id');
         const storedEbaySec = await AsyncStorage.getItem('@gemspotter_ebay_client_secret');
         const storedPhotoroom = await AsyncStorage.getItem('@gemspotter_photoroom_key');
-        const storedSupaUrl = await AsyncStorage.getItem('@gemspotter_supabase_url');
-        const storedSupaKey = await AsyncStorage.getItem('@gemspotter_supabase_anon_key');
         const storedLive = await AsyncStorage.getItem('@gemspotter_is_live_mode');
 
-        if (storedHistory !== null) setHistory(JSON.parse(storedHistory));
-        if (storedInventory !== null) setInventory(JSON.parse(storedInventory));
         if (storedOpenAi !== null) setOpenAiApiKeyLocal(storedOpenAi);
         if (storedEbayId !== null) setEbayClientIdLocal(storedEbayId);
         if (storedEbaySec !== null) setEbayClientSecretLocal(storedEbaySec);
         if (storedPhotoroom !== null) setPhotoroomApiKeyLocal(storedPhotoroom);
-        if (storedSupaUrl !== null) setSupabaseUrlLocal(storedSupaUrl);
-        if (storedSupaKey !== null) setSupabaseAnonKeyLocal(storedSupaKey);
         if (storedLive !== null) setIsLiveModeLocal(storedLive === 'true');
       } catch (e) {
         console.error('Failed to load state', e);
@@ -117,16 +156,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     loadState();
   }, []);
-
-  // Sync to remote Supabase database on inventory/history change (debounced/background)
-  useEffect(() => {
-    const autoSync = async () => {
-      if (supabaseUrl && supabaseAnonKey && isLiveMode) {
-        await syncLedgerToSupabase(supabaseUrl, supabaseAnonKey, inventory, history);
-      }
-    };
-    autoSync();
-  }, [inventory, history, supabaseUrl, supabaseAnonKey, isLiveMode]);
 
   // Setters with persistent storage
   const setOpenAiApiKey = async (val: string) => {
@@ -144,14 +173,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setPhotoroomApiKey = async (val: string) => {
     setPhotoroomApiKeyLocal(val);
     await AsyncStorage.setItem('@gemspotter_photoroom_key', val);
-  };
-  const setSupabaseUrl = async (val: string) => {
-    setSupabaseUrlLocal(val);
-    await AsyncStorage.setItem('@gemspotter_supabase_url', val);
-  };
-  const setSupabaseAnonKey = async (val: string) => {
-    setSupabaseAnonKeyLocal(val);
-    await AsyncStorage.setItem('@gemspotter_supabase_anon_key', val);
   };
   const setIsLiveMode = async (val: boolean) => {
     setIsLiveModeLocal(val);
@@ -174,22 +195,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCapturedPhotos([]);
   };
 
-  const syncLedger = async () => {
-    return await syncLedgerToSupabase(supabaseUrl, supabaseAnonKey, inventory, history);
-  };
-
-  const saveHistory = async (val: ScanHistoryItem[]) => {
-    setHistory(val);
-    await AsyncStorage.setItem('@gemspotter_history', JSON.stringify(val));
-  };
-
-  const saveInventory = async (val: InventoryItem[]) => {
-    setInventory(val);
-    await AsyncStorage.setItem('@gemspotter_inventory', JSON.stringify(val));
-  };
-
   const performScan = async (item: ScannableItem): Promise<boolean> => {
-    // Create history item
     const newHistoryItem: ScanHistoryItem = {
       id: `history-${Date.now()}`,
       scannableItem: item,
@@ -197,7 +203,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     const updatedHistory = [newHistoryItem, ...history];
-    await saveHistory(updatedHistory);
+    setHistory(updatedHistory);
+    
+    // Save to local SQLite
+    await saveSQLiteHistoryItem(newHistoryItem);
+    
     setActiveScan(item);
     return true;
   };
@@ -215,7 +225,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
 
-    await saveInventory([newItem, ...inventory]);
+    const updatedInventory = [newItem, ...inventory];
+    setInventory(updatedInventory);
+    
+    // Save to SQLite
+    await saveSQLiteInventoryItem(newItem);
   };
 
   const addManualInventory = async (
@@ -237,53 +251,78 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
 
-    await saveInventory([newItem, ...inventory]);
+    const updatedInventory = [newItem, ...inventory];
+    setInventory(updatedInventory);
+    
+    // Save to SQLite
+    await saveSQLiteInventoryItem(newItem);
   };
 
   const generateListing = async (itemId: string): Promise<boolean> => {
-    // Find item and update it with AI generated metadata
+    let updatedItem: InventoryItem | null = null;
+    
     const updatedInventory = inventory.map(item => {
       if (item.id === itemId) {
-        // Match with scannable mock data if matches, otherwise generate mock AI text
-        const matchedMock = MOCK_SCANNABLE_ITEMS.find(m => m.title.toLowerCase().includes(item.title.toLowerCase()) || item.title.toLowerCase().includes(m.title.toLowerCase()));
+        const matchedMock = MOCK_SCANNABLE_ITEMS.find(m => 
+          m.title.toLowerCase().includes(item.title.toLowerCase()) || 
+          item.title.toLowerCase().includes(m.title.toLowerCase())
+        );
 
-        return {
+        updatedItem = {
           ...item,
           suggestedTitle: matchedMock?.suggestedTitle || `AI GENERATED: Professional ${item.title} Listing`,
           suggestedDescription: matchedMock?.suggestedDescription || `This is a high-quality ${item.title}. In excellent cosmetic and working condition. Pre-owned and checked by Gemspotter AI. Ready to ship out quickly!`,
           tags: matchedMock?.tags || [item.category.split('>')[0].trim().toLowerCase(), 'reseller', 'deal', 'quality'],
           status: 'listed' as const,
         };
+        return updatedItem;
       }
       return item;
     });
 
-    await saveInventory(updatedInventory);
+    setInventory(updatedInventory);
+    
+    if (updatedItem) {
+      await saveSQLiteInventoryItem(updatedItem);
+    }
+    
     return true;
   };
 
   const markAsSold = async (itemId: string, soldPrice: number, shippingCost: number) => {
+    let updatedItem: InventoryItem | null = null;
+
     const updatedInventory = inventory.map(item => {
       if (item.id === itemId) {
-        return {
+        updatedItem = {
           ...item,
           soldPrice,
           shippingCost,
           status: 'sold' as const,
         };
+        return updatedItem;
       }
       return item;
     });
-    await saveInventory(updatedInventory);
+    
+    setInventory(updatedInventory);
+    
+    if (updatedItem) {
+      await saveSQLiteInventoryItem(updatedItem);
+    }
   };
 
   const deleteInventoryItem = async (itemId: string) => {
     const updatedInventory = inventory.filter(item => item.id !== itemId);
-    await saveInventory(updatedInventory);
+    setInventory(updatedInventory);
+    
+    // Delete from SQLite
+    await deleteSQLiteInventoryItem(itemId);
   };
 
   const resetAllData = async () => {
     await AsyncStorage.clear();
+    await wipeAllSQLiteData();
     setHistory([]);
     setInventory([]);
     setActiveScan(null);
@@ -291,8 +330,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setEbayClientIdLocal('');
     setEbayClientSecretLocal('');
     setPhotoroomApiKeyLocal('');
-    setSupabaseUrlLocal('');
-    setSupabaseAnonKeyLocal('');
     setIsLiveModeLocal(false);
     setCapturedPhotos([]);
   };
@@ -319,17 +356,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setEbayClientSecret,
         photoroomApiKey,
         setPhotoroomApiKey,
-        supabaseUrl,
-        setSupabaseUrl,
-        supabaseAnonKey,
-        setSupabaseAnonKey,
         isLiveMode,
         setIsLiveMode,
         capturedPhotos,
         addCapturedPhoto,
         removeCapturedPhoto,
         clearCapturedPhotos,
-        syncLedger,
       }}
     >
       {children}

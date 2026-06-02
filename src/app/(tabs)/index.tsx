@@ -17,7 +17,7 @@ import { MOCK_SCANNABLE_ITEMS, ScannableItem } from '../../data/mockData';
 import { ValuationSheet } from '../../components/ValuationSheet';
 import { ListingSheet } from '../../components/ListingSheet';
 import { OnboardingModal } from '../../components/OnboardingModal';
-import { Zap, HelpCircle, RefreshCw } from 'lucide-react-native';
+import { Zap, HelpCircle, RefreshCw, Database } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { recognizeItem } from '../../services/aiService';
@@ -37,8 +37,6 @@ export default function SourcingCameraScreen() {
     setEbayClientId,
     setEbayClientSecret,
     setPhotoroomApiKey,
-    setSupabaseUrl,
-    setSupabaseAnonKey,
     setIsLiveMode,
   } = useApp();
 
@@ -62,10 +60,20 @@ export default function SourcingCameraScreen() {
   // Focus visual indicator coordinate state
   const [focusCoords, setFocusCoords] = useState<{ x: number; y: number } | null>(null);
 
+  // Mock Objects Selector Visibility
+  const [showMockList, setShowMockList] = useState(false);
+
   // Animated values
   const scanLineAnim = useRef(new Animated.Value(0)).current;
   const overlayOpacityAnim = useRef(new Animated.Value(0.15)).current;
   const focusScaleAnim = useRef(new Animated.Value(1)).current;
+
+  // Set default showMockList based on camera permissions
+  useEffect(() => {
+    if (permission) {
+      setShowMockList(!permission.granted);
+    }
+  }, [permission]);
 
   // Check onboarding status
   useEffect(() => {
@@ -84,8 +92,6 @@ export default function SourcingCameraScreen() {
       await setEbayClientId(config.ebayClientId);
       await setEbayClientSecret(config.ebayClientSecret);
       await setPhotoroomApiKey(config.photoroomApiKey);
-      await setSupabaseUrl(config.supabaseUrl);
-      await setSupabaseAnonKey(config.supabaseAnonKey);
       await setIsLiveMode(config.isLiveMode);
       
       await AsyncStorage.setItem('@gemspotter_onboarded', 'true');
@@ -441,8 +447,8 @@ export default function SourcingCameraScreen() {
           </View>
         )}
 
-        {capturedPhotos.length === 0 && (
-          <>
+        {showMockList && capturedPhotos.length === 0 && (
+          <View style={{ marginBottom: 12 }}>
             <Text style={styles.selectorLabel}>CHOOSE MOCK OBJECT TO SCAN</Text>
             <ScrollView
               horizontal
@@ -475,15 +481,25 @@ export default function SourcingCameraScreen() {
                 );
               })}
             </ScrollView>
-          </>
+          </View>
         )}
 
         {/* Shutter & Scanning Center buttons */}
         <View style={styles.triggerWrapper}>
-          {capturedPhotos.length > 0 && !isScanning && (
+          {capturedPhotos.length > 0 && !isScanning ? (
             <TouchableOpacity style={styles.clearBtn} onPress={clearCapturedPhotos}>
               <Text style={styles.clearBtnText}>Clear All</Text>
             </TouchableOpacity>
+          ) : permission?.granted && capturedPhotos.length === 0 ? (
+            <TouchableOpacity 
+              style={[styles.mockToggleBtn, showMockList && styles.mockToggleBtnActive]} 
+              onPress={() => setShowMockList(!showMockList)}
+            >
+              <Database color={showMockList ? COLORS.accentCyan : '#9ca3af'} size={14} />
+              <Text style={[styles.mockToggleBtnText, showMockList && { color: COLORS.accentCyan }]}>MOCKS</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 90 }} />
           )}
 
           <TouchableOpacity
@@ -615,13 +631,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   cameraBox: {
-    flex: 1.1,
-    margin: 16,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: COLORS.borderCard,
+    flex: 1,
     backgroundColor: 'black',
-    overflow: 'hidden',
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
@@ -729,8 +740,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   controls: {
-    flex: 1,
-    paddingBottom: 24,
+    position: 'absolute',
+    bottom: 20,
+    left: 0,
+    right: 0,
+    zIndex: 20,
+    paddingBottom: 16,
   },
   selectorLabel: {
     color: COLORS.textSecondary,
@@ -826,7 +841,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(244, 63, 94, 0.12)',
     borderWidth: 1,
     borderColor: 'rgba(244, 63, 94, 0.25)',
-    width: 90,
+    minWidth: 95,
     alignItems: 'center',
   },
   clearBtnText: {
@@ -841,7 +856,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 240, 255, 0.15)',
     borderWidth: 1,
     borderColor: COLORS.borderGlow,
-    width: 90,
+    minWidth: 105,
     alignItems: 'center',
   },
   scanBtnText: {
@@ -849,6 +864,28 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     textAlign: 'center',
+  },
+  mockToggleBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: COLORS.borderCard,
+    width: 90,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  mockToggleBtnActive: {
+    borderColor: COLORS.accentCyan,
+    backgroundColor: 'rgba(0, 240, 255, 0.08)',
+  },
+  mockToggleBtnText: {
+    color: COLORS.textSecondary,
+    fontSize: 9,
+    fontWeight: '800',
   },
   infoHint: {
     flexDirection: 'row',

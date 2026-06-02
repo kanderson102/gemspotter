@@ -10,14 +10,13 @@ import {
   Switch,
   ActivityIndicator,
   Clipboard,
+  Linking,
 } from 'react-native';
 import { useApp } from '../../context/AppContext';
 import { COLORS } from '../../constants/theme';
 import {
   Trash2,
   ShieldAlert,
-  Terminal,
-  Smartphone,
   Cpu,
   Key,
   Database,
@@ -28,7 +27,6 @@ import {
   EyeOff,
   AlertCircle,
 } from 'lucide-react-native';
-import { testSupabaseConnection } from '../../services/supabaseService';
 
 export default function SettingsScreen() {
   const {
@@ -41,70 +39,14 @@ export default function SettingsScreen() {
     setEbayClientSecret,
     photoroomApiKey,
     setPhotoroomApiKey,
-    supabaseUrl,
-    setSupabaseUrl,
-    supabaseAnonKey,
-    setSupabaseAnonKey,
     isLiveMode,
     setIsLiveMode,
-    syncLedger,
   } = useApp();
 
   // Password visibility flags
   const [showOpenAi, setShowOpenAi] = useState(false);
   const [showEbaySec, setShowEbaySec] = useState(false);
   const [showPhotoroom, setShowPhotoroom] = useState(false);
-  const [showSupaKey, setShowSupaKey] = useState(false);
-
-  // Connection testing state
-  const [testingConnection, setTestingConnection] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<{ success: boolean; message: string } | null>(null);
-
-  const SQL_SCHEMA = `-- 1. Create Inventory Table
-create table inventory (
-  id text primary key,
-  title text not null,
-  category text,
-  cogs numeric,
-  weight_class text,
-  description text,
-  suggested_title text,
-  suggested_description text,
-  tags text,
-  image_url text,
-  status text,
-  created_at timestamp with time zone,
-  sold_price numeric,
-  shipping_cost numeric
-);
-
--- 2. Create Scan History Table
-create table history (
-  id text primary key,
-  scanned_at timestamp with time zone,
-  item_title text,
-  item_category text,
-  item_image_url text,
-  item_raw_data text
-);`;
-
-  const handleCopySql = () => {
-    Clipboard.setString(SQL_SCHEMA);
-    Alert.alert('SQL Copied!', 'The Supabase database setup script has been copied to your clipboard. Paste it in your Supabase SQL Editor and run it.');
-  };
-
-  const handleTestConnection = async () => {
-    setTestingConnection(true);
-    setConnectionStatus(null);
-    try {
-      const result = await testSupabaseConnection(supabaseUrl, supabaseAnonKey);
-      setConnectionStatus(result);
-    } catch (e: any) {
-      setConnectionStatus({ success: false, message: e.message || 'Unknown network error' });
-    } finally {
-      setTestingConnection(false);
-    }
-  };
 
   const handleResetData = () => {
     Alert.alert(
@@ -144,6 +86,18 @@ create table history (
           </View>
         </View>
 
+        {/* SQLite Local Database Status */}
+        <Text style={styles.sectionHeader}>Local Database Status</Text>
+        <View style={[styles.infoCard, { borderColor: 'rgba(16, 185, 129, 0.2)', backgroundColor: 'rgba(16, 185, 129, 0.04)', marginBottom: 16 }]}>
+          <Database color={COLORS.accentEmerald} size={20} />
+          <View style={styles.infoContent}>
+            <Text style={[styles.infoTitle, { color: COLORS.accentEmerald }]}>Local SQLite Database: Active</Text>
+            <Text style={styles.infoDesc}>
+              Ledger data and scan history are saved locally and securely in a robust SQLite database. No external database setup is required.
+            </Text>
+          </View>
+        </View>
+
         {/* API Credentials Card */}
         <Text style={styles.sectionHeader}>API & Integration Keys</Text>
         <View style={styles.configCard}>
@@ -152,7 +106,7 @@ create table history (
             <View style={styles.toggleTextCol}>
               <Text style={styles.toggleLabel}>Live Production Mode</Text>
               <Text style={styles.toggleDesc}>
-                {isLiveMode ? 'Using real APIs. Rates & credits will apply.' : 'Simulated / Offline mode. Free & simulated data.'}
+                {isLiveMode ? 'Using real APIs. Rates & API costs will apply.' : 'Simulated / Offline mode. Free & simulated data.'}
               </Text>
             </View>
             <Switch
@@ -163,187 +117,89 @@ create table history (
             />
           </View>
 
-          {isLiveMode && (
-            <View style={styles.formContainer}>
-              {/* OpenAI Section */}
-              <View style={styles.fieldSection}>
-                <View style={styles.fieldHeader}>
-                  <Sparkles color={COLORS.accentPurple} size={14} />
-                  <Text style={styles.fieldSectionTitle}>OpenAI API (Vision & SEO)</Text>
-                </View>
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    style={styles.fieldInput}
-                    value={openAiApiKey}
-                    onChangeText={setOpenAiApiKey}
-                    placeholder="sk-proj-..."
-                    placeholderTextColor={COLORS.textDark}
-                    secureTextEntry={!showOpenAi}
-                    autoCapitalize="none"
-                  />
-                  <TouchableOpacity onPress={() => setShowOpenAi(!showOpenAi)} style={styles.eyeBtn}>
-                    {showOpenAi ? <EyeOff color={COLORS.textSecondary} size={16} /> : <Eye color={COLORS.textSecondary} size={16} />}
-                  </TouchableOpacity>
-                </View>
+          <View style={styles.formContainer}>
+            {/* OpenAI Section */}
+            <View style={styles.fieldSection}>
+              <View style={styles.fieldHeader}>
+                <Sparkles color={COLORS.accentPurple} size={14} />
+                <Text style={styles.fieldSectionTitle}>OpenAI API (Vision & SEO)</Text>
               </View>
-
-              {/* eBay Section */}
-              <View style={styles.fieldSection}>
-                <View style={styles.fieldHeader}>
-                  <ShoppingBag color={COLORS.accentCyan} size={14} />
-                  <Text style={styles.fieldSectionTitle}>eBay App credentials (Browse Comps)</Text>
-                </View>
+              <View style={styles.inputWrapper}>
                 <TextInput
                   style={styles.fieldInput}
-                  value={ebayClientId}
-                  onChangeText={setEbayClientId}
-                  placeholder="eBay App ID (Client ID)"
+                  value={openAiApiKey}
+                  onChangeText={setOpenAiApiKey}
+                  placeholder="sk-proj-..."
                   placeholderTextColor={COLORS.textDark}
+                  secureTextEntry={!showOpenAi}
                   autoCapitalize="none"
                 />
-                <View style={[styles.inputWrapper, { marginTop: 6 }]}>
-                  <TextInput
-                    style={styles.fieldInput}
-                    value={ebayClientSecret}
-                    onChangeText={setEbayClientSecret}
-                    placeholder="eBay Cert ID (Client Secret)"
-                    placeholderTextColor={COLORS.textDark}
-                    secureTextEntry={!showEbaySec}
-                    autoCapitalize="none"
-                  />
-                  <TouchableOpacity onPress={() => setShowEbaySec(!showEbaySec)} style={styles.eyeBtn}>
-                    {showEbaySec ? <EyeOff color={COLORS.textSecondary} size={16} /> : <Eye color={COLORS.textSecondary} size={16} />}
-                  </TouchableOpacity>
-                </View>
+                <TouchableOpacity onPress={() => setShowOpenAi(!showOpenAi)} style={styles.eyeBtn}>
+                  {showOpenAi ? <EyeOff color={COLORS.textSecondary} size={16} /> : <Eye color={COLORS.textSecondary} size={16} />}
+                </TouchableOpacity>
               </View>
+              <TouchableOpacity onPress={() => Linking.openURL('https://platform.openai.com/api-keys')}>
+                <Text style={styles.setupLinkText}>Get OpenAI Key from Platform Dashboard ↗</Text>
+              </TouchableOpacity>
+            </View>
 
-              {/* Photoroom Section */}
-              <View style={styles.fieldSection}>
-                <View style={styles.fieldHeader}>
-                  <Key color={COLORS.accentPurple} size={14} />
-                  <Text style={styles.fieldSectionTitle}>Photoroom API (Background Removal)</Text>
-                </View>
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    style={styles.fieldInput}
-                    value={photoroomApiKey}
-                    onChangeText={setPhotoroomApiKey}
-                    placeholder="Photoroom API Key"
-                    placeholderTextColor={COLORS.textDark}
-                    secureTextEntry={!showPhotoroom}
-                    autoCapitalize="none"
-                  />
-                  <TouchableOpacity onPress={() => setShowPhotoroom(!showPhotoroom)} style={styles.eyeBtn}>
-                    {showPhotoroom ? <EyeOff color={COLORS.textSecondary} size={16} /> : <Eye color={COLORS.textSecondary} size={16} />}
-                  </TouchableOpacity>
-                </View>
+            {/* eBay Section */}
+            <View style={styles.fieldSection}>
+              <View style={styles.fieldHeader}>
+                <ShoppingBag color={COLORS.accentCyan} size={14} />
+                <Text style={styles.fieldSectionTitle}>eBay App Credentials (Browse Comps)</Text>
               </View>
-
-              {/* Supabase Section */}
-              <View style={styles.fieldSection}>
-                <View style={styles.fieldHeader}>
-                  <Database color={COLORS.accentEmerald} size={14} />
-                  <Text style={styles.fieldSectionTitle}>Supabase Cloud DB & Sync</Text>
-                </View>
+              <TextInput
+                style={styles.fieldInput}
+                value={ebayClientId}
+                onChangeText={setEbayClientId}
+                placeholder="eBay App ID (Client ID)"
+                placeholderTextColor={COLORS.textDark}
+                autoCapitalize="none"
+              />
+              <View style={[styles.inputWrapper, { marginTop: 6 }]}>
                 <TextInput
                   style={styles.fieldInput}
-                  value={supabaseUrl}
-                  onChangeText={setSupabaseUrl}
-                  placeholder="https://your-project.supabase.co"
+                  value={ebayClientSecret}
+                  onChangeText={setEbayClientSecret}
+                  placeholder="eBay Cert ID (Client Secret)"
                   placeholderTextColor={COLORS.textDark}
+                  secureTextEntry={!showEbaySec}
                   autoCapitalize="none"
                 />
-                <View style={[styles.inputWrapper, { marginTop: 6 }]}>
-                  <TextInput
-                    style={styles.fieldInput}
-                    value={supabaseAnonKey}
-                    onChangeText={setSupabaseAnonKey}
-                    placeholder="Supabase Anon Key"
-                    placeholderTextColor={COLORS.textDark}
-                    secureTextEntry={!showSupaKey}
-                    autoCapitalize="none"
-                  />
-                  <TouchableOpacity onPress={() => setShowSupaKey(!showSupaKey)} style={styles.eyeBtn}>
-                    {showSupaKey ? <EyeOff color={COLORS.textSecondary} size={16} /> : <Eye color={COLORS.textSecondary} size={16} />}
-                  </TouchableOpacity>
-                </View>
-
-                {/* Connection check */}
-                <TouchableOpacity
-                  style={[styles.testBtn, (testingConnection || !supabaseUrl) && styles.testBtnDisabled]}
-                  onPress={handleTestConnection}
-                  disabled={testingConnection || !supabaseUrl}
-                >
-                  {testingConnection ? (
-                    <ActivityIndicator color={COLORS.bgDeep} size="small" />
-                  ) : (
-                    <Text style={styles.testBtnText}>Test Supabase Connection</Text>
-                  )}
+                <TouchableOpacity onPress={() => setShowEbaySec(!showEbaySec)} style={styles.eyeBtn}>
+                  {showEbaySec ? <EyeOff color={COLORS.textSecondary} size={16} /> : <Eye color={COLORS.textSecondary} size={16} />}
                 </TouchableOpacity>
-
-                {/* SQL setup copy helper */}
-                <TouchableOpacity
-                  style={[styles.testBtn, { backgroundColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 1, borderColor: COLORS.borderCard }]}
-                  onPress={handleCopySql}
-                >
-                  <Text style={[styles.testBtnText, { color: 'white' }]}>Copy Supabase SQL Setup</Text>
-                </TouchableOpacity>
-
-                {connectionStatus && (
-                  <View style={[styles.statusBox, connectionStatus.success ? styles.statusSuccess : styles.statusFailed]}>
-                    <AlertCircle color={connectionStatus.success ? COLORS.accentEmerald : COLORS.accentRose} size={14} />
-                    <Text style={[styles.statusText, connectionStatus.success ? { color: COLORS.accentEmerald } : { color: COLORS.accentRose }]}>
-                      {connectionStatus.message}
-                    </Text>
-                  </View>
-                )}
               </View>
+              <TouchableOpacity onPress={() => Linking.openURL('https://developer.ebay.com/')}>
+                <Text style={styles.setupLinkText}>Get Client ID & Secret from eBay Developer Portal ↗</Text>
+              </TouchableOpacity>
             </View>
-          )}
-        </View>
 
-        {/* Packaging Guide */}
-        <Text style={styles.sectionHeader}>How to Package & Install (EAS Build)</Text>
-        <View style={styles.guideCard}>
-          <Text style={styles.guideTitle}>1. Install EAS CLI</Text>
-          <Text style={styles.guideDesc}>
-            Install the Expo Application Services command-line tool globally:
-          </Text>
-          <View style={styles.codeBox}>
-            <Terminal color={COLORS.accentCyan} size={14} />
-            <Text style={styles.codeText}>npm install -g eas-cli</Text>
-          </View>
-
-          <Text style={styles.guideTitle}>2. Login to Expo Account</Text>
-          <Text style={styles.guideDesc}>
-            Create a free account on expo.dev and log in locally:
-          </Text>
-          <View style={styles.codeBox}>
-            <Terminal color={COLORS.accentCyan} size={14} />
-            <Text style={styles.codeText}>eas login</Text>
-          </View>
-
-          <Text style={styles.guideTitle}>3. Configure Project</Text>
-          <Text style={styles.guideDesc}>
-            Initialize the project EAS configuration:
-          </Text>
-          <View style={styles.codeBox}>
-            <Terminal color={COLORS.accentCyan} size={14} />
-            <Text style={styles.codeText}>eas build:configure</Text>
-          </View>
-
-          <Text style={styles.guideTitle}>4. Compile Standalone Build</Text>
-          <Text style={styles.guideDesc}>
-            Trigger Expo cloud compilers to build an installable Android APK:
-          </Text>
-          <View style={[styles.codeBox, { flexDirection: 'column', alignItems: 'flex-start', gap: 6 }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Smartphone color={COLORS.accentCyan} size={14} />
-              <Text style={styles.codeText}># Build Android APK (Preview)</Text>
+            {/* Photoroom Section */}
+            <View style={styles.fieldSection}>
+              <View style={styles.fieldHeader}>
+                <Key color={COLORS.accentPurple} size={14} />
+                <Text style={styles.fieldSectionTitle}>Photoroom API (Background Removal)</Text>
+              </View>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.fieldInput}
+                  value={photoroomApiKey}
+                  onChangeText={setPhotoroomApiKey}
+                  placeholder="Photoroom API Key"
+                  placeholderTextColor={COLORS.textDark}
+                  secureTextEntry={!showPhotoroom}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity onPress={() => setShowPhotoroom(!showPhotoroom)} style={styles.eyeBtn}>
+                  {showPhotoroom ? <EyeOff color={COLORS.textSecondary} size={16} /> : <Eye color={COLORS.textSecondary} size={16} />}
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity onPress={() => Linking.openURL('https://www.photoroom.com/api/')}>
+                <Text style={styles.setupLinkText}>Get Photoroom API Key from Console ↗</Text>
+              </TouchableOpacity>
             </View>
-            <Text style={[styles.codeText, { paddingLeft: 22, color: 'white' }]}>
-              eas build --platform android --profile preview
-            </Text>
           </View>
         </View>
 
@@ -355,11 +211,11 @@ create table history (
             <Text style={styles.debugTitle}>Local Storage Diagnostics</Text>
           </View>
           <Text style={styles.debugDesc}>
-            Clear all saved state from AsyncStorage. This restores the database to initial seed data.
+            Clear all saved state from AsyncStorage and wipe the local SQLite database. This restores the app to a fresh installation state.
           </Text>
           <TouchableOpacity style={styles.resetBtn} onPress={handleResetData}>
             <Trash2 color="white" size={14} />
-            <Text style={styles.resetBtnText}>Clear AsyncStorage Data</Text>
+            <Text style={styles.resetBtnText}>Clear All Local Data (Database & Credentials)</Text>
           </TouchableOpacity>
         </View>
 
@@ -614,5 +470,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     flex: 1,
+  },
+  setupLinkText: {
+    color: COLORS.accentCyan,
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 4,
+    textDecorationLine: 'underline',
   },
 });

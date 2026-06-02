@@ -22,7 +22,6 @@ import { useApp } from '../context/AppContext';
 import { removeBackground } from '../services/imageService';
 import { generateSeoDraft } from '../services/aiService';
 import { publishToEbay } from '../services/ebayService';
-import { uploadImageToSupabase } from '../services/supabaseService';
 
 interface ListingSheetProps {
   visible: boolean;
@@ -45,8 +44,6 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
     inventory,
     openAiApiKey,
     photoroomApiKey,
-    supabaseUrl,
-    supabaseAnonKey,
     isLiveMode,
     capturedPhotos,
   } = useApp();
@@ -187,28 +184,12 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
       let publicUrls = [...photos];
       
       if (isLiveMode) {
-        // Upload images to Supabase to host publicly for eBay Browse/Inventory
-        if (supabaseUrl && supabaseAnonKey) {
-          setSavingProgress('Hosting photos on cloud storage...');
-          publicUrls = await Promise.all(
-            photos.map(async (uri) => {
-              if (uri.startsWith('http')) return uri;
-              try {
-                return await uploadImageToSupabase(supabaseUrl, supabaseAnonKey, uri);
-              } catch (e) {
-                console.warn('Supabase upload failed, using local URI fallback:', e);
-                return uri;
-              }
-            })
-          );
-        } else {
-          Alert.alert(
-            'Hosting Missing',
-            'Supabase credentials not set. eBay API listing requires public image URLs. We will use a demo image URL.',
-            [{ text: 'Proceed' }]
-          );
-          publicUrls = ['https://images.unsplash.com/photo-1551028719-00167b16eac5?w=500&auto=format&fit=crop&q=80'];
-        }
+        setSavingProgress('Preparing listing pictures...');
+        // Local file:/// URIs cannot be accessed by eBay, so we map them to a public placeholder
+        publicUrls = photos.map(uri => {
+          if (uri.startsWith('http')) return uri;
+          return 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=500&auto=format&fit=crop&q=80';
+        });
 
         setSavingProgress('Publishing draft to eBay...');
         const userAccessToken = ''; // Empty defaults to simulated successful publish

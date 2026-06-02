@@ -21,8 +21,6 @@ interface OnboardingModalProps {
     ebayClientId: string;
     ebayClientSecret: string;
     photoroomApiKey: string;
-    supabaseUrl: string;
-    supabaseAnonKey: string;
     isLiveMode: boolean;
   }) => void;
 }
@@ -35,8 +33,6 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onCom
   const [ebayId, setEbayId] = useState('');
   const [ebaySecret, setEbaySecret] = useState('');
   const [photoroomKey, setPhotoroomKey] = useState('');
-  const [supaUrl, setSupaUrl] = useState('');
-  const [supaKey, setSupaKey] = useState('');
   const [liveMode, setLiveMode] = useState(false);
 
   const handleNext = () => {
@@ -48,8 +44,6 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onCom
         ebayClientId: ebayId,
         ebayClientSecret: ebaySecret,
         photoroomApiKey: photoroomKey,
-        supabaseUrl: supaUrl,
-        supabaseAnonKey: supaKey,
         isLiveMode: liveMode,
       });
     }
@@ -198,38 +192,6 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onCom
                 />
                 <Text style={styles.fieldHelp}>Queries the Browse API search for real sold comps.</Text>
               </View>
-
-              {/* Supabase credentials */}
-              <View style={styles.inputGroup}>
-                <View style={styles.labelRow}>
-                  <Text style={styles.inputLabel}>SUPABASE URL</Text>
-                  <TouchableOpacity onPress={() => Linking.openURL('https://supabase.com/')}>
-                    <Text style={styles.linkLabel}>Get DB ↗</Text>
-                  </TouchableOpacity>
-                </View>
-                <TextInput
-                  style={styles.textInput}
-                  value={supaUrl}
-                  onChangeText={setSupaUrl}
-                  placeholder="https://your-project.supabase.co"
-                  placeholderTextColor={COLORS.textDark}
-                  autoCapitalize="none"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>SUPABASE ANON KEY</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={supaKey}
-                  onChangeText={setSupaKey}
-                  placeholder="Supabase Anon Key"
-                  placeholderTextColor={COLORS.textDark}
-                  secureTextEntry
-                  autoCapitalize="none"
-                />
-                <Text style={styles.fieldHelp}>Syncs local async history/inventory records to remote cloud servers.</Text>
-              </View>
             </View>
           )}
 
@@ -258,7 +220,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onCom
               <View style={styles.card}>
                 <Text style={styles.cardHeading}>Security Notice</Text>
                 <Text style={styles.cardDesc}>
-                  Your API credentials are saved directly to your phone's secure storage. They are never transmitted to any third party besides the direct API endpoints (OpenAI, eBay, Photoroom, Supabase).
+                  Your API credentials are saved directly to your phone's secure storage. They are never transmitted to any third party besides the direct API endpoints (OpenAI, eBay, and Photoroom).
                 </Text>
               </View>
             </View>

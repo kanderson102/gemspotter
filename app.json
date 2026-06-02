@@ -14,7 +14,10 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "navigationBar": {
+        "visible": "sticky-immersive"
+      }
     },
     "web": {
       "output": "static",
@@ -39,7 +42,8 @@
         {
           "cameraPermission": "Allow Gemspotter to access your camera to identify objects."
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,
