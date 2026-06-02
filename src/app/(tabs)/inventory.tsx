@@ -36,11 +36,9 @@ const SHIPPING_COSTS = {
 export default function InventoryScreen() {
   const {
     inventory,
-    tier,
     addManualInventory,
     markAsSold,
     deleteInventoryItem,
-    gems,
   } = useApp();
 
   const [filter, setFilter] = useState<'All' | 'sourced' | 'listed' | 'sold'>('All');
@@ -414,7 +412,7 @@ export default function InventoryScreen() {
                 style={[styles.modalBtn, styles.saveBtn]}
                 onPress={handleManualAdd}
               >
-                <Text style={styles.saveBtnText}>Save (0 Gems)</Text>
+                <Text style={styles.saveBtnText}>Save Item</Text>
               </TouchableOpacity>
             </View>
           </View>

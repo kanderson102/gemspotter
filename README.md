@@ -1,12 +1,12 @@
 # Gemspotter 💎
 
-Gemspotter is a premium, AI-powered reseller sourcing and business analytics native mobile application. It integrates item photo sourcing, eBay market comps valuation, automated SEO listing draft generation, and reseller profit ledger tracking in a single cross-platform workflow, wrapped around a credit-based "Gem Economy."
+Gemspotter is an AI-powered reseller, sourcing, and business analytics native mobile application. It integrates item photo sourcing, eBay market comps valuation, automated SEO listing draft generation, and reseller profit ledger tracking in a single cross-platform workflow, wrapped around a credit-based "Gem Economy."
 
 ---
 
 ## 🚀 Key Features
 
-- **AI Sourcing Camera**: Launch the device camera, capture item images, and simulate a smart laser scan targeting your thrift finds.
+- **AI Sourcing Camera**: Launch the device camera, capture item images, and simulate a smart image scan targeting your thrift finds.
 - **Valuation Dashboard (Bottom Sheet)**: Instantly analyze potential net profits, estimated eBay sold comps, platform fees, and ROI percentage. Includes custom COGS adjustments and shipping weight selectors.
 - **Draggable Swipe Dismissal**: Modern bottom sheets ([ValuationSheet](src/components/ValuationSheet.tsx) & [ListingSheet](src/components/ListingSheet.tsx)) support native `PanResponder` vertical swipe-down dragging for seamless page navigation.
 - **AI Listing Assistant**: Generates background-removed previews and SEO-optimized titles, descriptions, and tag descriptors in exchange for 5 Gems.

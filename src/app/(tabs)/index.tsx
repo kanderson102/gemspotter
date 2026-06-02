@@ -19,7 +19,7 @@ import { Zap, HelpCircle, RefreshCw } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function SourcingCameraScreen() {
-  const { gems, tier, performScan, activeScan, setActiveScan } = useApp();
+  const { performScan, activeScan, setActiveScan } = useApp();
   const [selectedMock, setSelectedMock] = useState<ScannableItem>(MOCK_SCANNABLE_ITEMS[0]);
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState('Standby');
@@ -108,14 +108,6 @@ export default function SourcingCameraScreen() {
   };
 
   const handleStartScan = async () => {
-    if (gems < 1) {
-      Alert.alert(
-        'Out of Gems',
-        'You need at least 1 Gem to run a sourcing scan. Please purchase gems in Settings.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
 
     Alert.alert(
       'Sourcing Scanner',
@@ -174,11 +166,7 @@ export default function SourcingCameraScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.logo}>GEMSPOTTER</Text>
-          <Text style={styles.planBadge}>{tier.toUpperCase()} MEMBER</Text>
-        </View>
-        <View style={styles.gemsCounter}>
-          <Zap color={COLORS.accentCyan} size={15} fill={COLORS.accentCyan} />
-          <Text style={styles.gemsText}>{gems} GEMS</Text>
+          <Text style={styles.planBadge}>AI SOURCING HUB</Text>
         </View>
       </View>
 

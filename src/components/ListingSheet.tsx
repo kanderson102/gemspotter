@@ -211,7 +211,7 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
                 <View style={styles.alertCard}>
                   <AlertCircle color={COLORS.accentAmber} size={16} />
                   <Text style={styles.alertText}>
-                    Clicking "Save & List" will charge <Text style={{ fontWeight: '700', color: 'white' }}>5 Gems</Text> and log this item as <Text style={{ color: COLORS.accentCyan, fontWeight: '700' }}>"Listed"</Text> in your local inventory.
+                    Saving will generate the AI Listing and log this item as <Text style={{ color: COLORS.accentCyan, fontWeight: '700' }}>"Listed"</Text> in your local inventory ledger.
                   </Text>
                 </View>
                 <View style={{ height: 40 }} />

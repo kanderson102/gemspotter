@@ -36,7 +36,7 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
   item,
   onList,
 }) => {
-  const { logToInventory, gems } = useApp();
+  const { logToInventory } = useApp();
   const [title, setTitle] = useState(item.suggestedTitle);
   const [cogs, setCogs] = useState('0');
   const [weightClass, setWeightClass] = useState<'Small' | 'Medium' | 'Large'>(item.weightClass);
@@ -271,9 +271,8 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
             <TouchableOpacity
               style={[styles.actionBtn, styles.listBtn]}
               onPress={onList}
-              disabled={gems < 5}
             >
-              <Text style={styles.listBtnText}>List Item (5 Gems)</Text>
+              <Text style={styles.listBtnText}>Create AI Listing</Text>
             </TouchableOpacity>
           </SafeAreaView>
         </Animated.View>

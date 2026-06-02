@@ -16,7 +16,7 @@ import { ValuationSheet } from '../../components/ValuationSheet';
 import { ListingSheet } from '../../components/ListingSheet';
 
 export default function ScanHistoryScreen() {
-  const { history, gems, tier, performScan, activeScan, setActiveScan, logToInventory, inventory } = useApp();
+  const { history, performScan, activeScan, setActiveScan, logToInventory, inventory } = useApp();
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<ScanHistoryItem | null>(null);
   
   // Sheet States
@@ -54,11 +54,6 @@ export default function ScanHistoryScreen() {
           <Text style={styles.title}>Scan History</Text>
           <Text style={styles.subtitle}>DEFERRED SOURCING LOG</Text>
         </View>
-        {tier === 'free' && (
-          <View style={styles.capBadge}>
-            <Text style={styles.capBadgeText}>CAPPED AT 5</Text>
-          </View>
-        )}
       </View>
 
       {history.length === 0 ? (
@@ -75,14 +70,6 @@ export default function ScanHistoryScreen() {
       ) : (
         /* History List */
         <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
-          {tier === 'free' && (
-            <View style={styles.alertBanner}>
-              <HelpCircle color={COLORS.accentAmber} size={14} />
-              <Text style={styles.alertBannerText}>
-                Free tier stores the last 5 scans. Upgrade to Pro for unlimited logging history.
-              </Text>
-            </View>
-          )}
 
           {history.map((item) => {
             const profit = calculateProfit(item);
