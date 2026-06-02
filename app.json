@@ -7,9 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "gemspotter",
     "userInterfaceStyle": "automatic",
-    "ios": {
-      "icon": "./assets/expo.icon"
-    },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -36,7 +33,13 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Gemspotter to access your camera to identify objects."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

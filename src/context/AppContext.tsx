@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScannableItem, MOCK_SCANNABLE_ITEMS } from '../data/mockData';
+import { syncLedgerToSupabase } from '../services/supabaseService';
 
 export interface InventoryItem {
   id: string;
@@ -25,7 +26,7 @@ export interface ScanHistoryItem {
   scannedAt: string;
 }
 
-interface AppContextType {
+export interface AppContextType {
   history: ScanHistoryItem[];
   inventory: InventoryItem[];
   activeScan: ScannableItem | null;
@@ -37,6 +38,29 @@ interface AppContextType {
   markAsSold: (itemId: string, soldPrice: number, shippingCost: number) => void;
   deleteInventoryItem: (itemId: string) => void;
   resetAllData: () => void;
+  
+  // API Credentials & Configuration
+  openAiApiKey: string;
+  setOpenAiApiKey: (val: string) => Promise<void>;
+  ebayClientId: string;
+  setEbayClientId: (val: string) => Promise<void>;
+  ebayClientSecret: string;
+  setEbayClientSecret: (val: string) => Promise<void>;
+  photoroomApiKey: string;
+  setPhotoroomApiKey: (val: string) => Promise<void>;
+  supabaseUrl: string;
+  setSupabaseUrl: (val: string) => Promise<void>;
+  supabaseAnonKey: string;
+  setSupabaseAnonKey: (val: string) => Promise<void>;
+  isLiveMode: boolean;
+  setIsLiveMode: (val: boolean) => Promise<void>;
+  
+  // Captured Images for Multi-Photo Listings
+  capturedPhotos: string[];
+  addCapturedPhoto: (uri: string) => void;
+  removeCapturedPhoto: (uri: string) => void;
+  clearCapturedPhotos: () => void;
+  syncLedger: () => Promise<{ success: boolean; message: string }>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -52,21 +76,107 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [activeScan, setActiveScan] = useState<ScannableItem | null>(null);
 
+  // API State
+  const [openAiApiKey, setOpenAiApiKeyLocal] = useState('');
+  const [ebayClientId, setEbayClientIdLocal] = useState('');
+  const [ebayClientSecret, setEbayClientSecretLocal] = useState('');
+  const [photoroomApiKey, setPhotoroomApiKeyLocal] = useState('');
+  const [supabaseUrl, setSupabaseUrlLocal] = useState('');
+  const [supabaseAnonKey, setSupabaseAnonKeyLocal] = useState('');
+  const [isLiveMode, setIsLiveModeLocal] = useState(false);
+
+  // Captured Images
+  const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
+
   // Load state on mount
   useEffect(() => {
     const loadState = async () => {
       try {
         const storedHistory = await AsyncStorage.getItem('@gemspotter_history');
         const storedInventory = await AsyncStorage.getItem('@gemspotter_inventory');
+        const storedOpenAi = await AsyncStorage.getItem('@gemspotter_openai_key');
+        const storedEbayId = await AsyncStorage.getItem('@gemspotter_ebay_client_id');
+        const storedEbaySec = await AsyncStorage.getItem('@gemspotter_ebay_client_secret');
+        const storedPhotoroom = await AsyncStorage.getItem('@gemspotter_photoroom_key');
+        const storedSupaUrl = await AsyncStorage.getItem('@gemspotter_supabase_url');
+        const storedSupaKey = await AsyncStorage.getItem('@gemspotter_supabase_anon_key');
+        const storedLive = await AsyncStorage.getItem('@gemspotter_is_live_mode');
 
         if (storedHistory !== null) setHistory(JSON.parse(storedHistory));
         if (storedInventory !== null) setInventory(JSON.parse(storedInventory));
+        if (storedOpenAi !== null) setOpenAiApiKeyLocal(storedOpenAi);
+        if (storedEbayId !== null) setEbayClientIdLocal(storedEbayId);
+        if (storedEbaySec !== null) setEbayClientSecretLocal(storedEbaySec);
+        if (storedPhotoroom !== null) setPhotoroomApiKeyLocal(storedPhotoroom);
+        if (storedSupaUrl !== null) setSupabaseUrlLocal(storedSupaUrl);
+        if (storedSupaKey !== null) setSupabaseAnonKeyLocal(storedSupaKey);
+        if (storedLive !== null) setIsLiveModeLocal(storedLive === 'true');
       } catch (e) {
         console.error('Failed to load state', e);
       }
     };
     loadState();
   }, []);
+
+  // Sync to remote Supabase database on inventory/history change (debounced/background)
+  useEffect(() => {
+    const autoSync = async () => {
+      if (supabaseUrl && supabaseAnonKey && isLiveMode) {
+        await syncLedgerToSupabase(supabaseUrl, supabaseAnonKey, inventory, history);
+      }
+    };
+    autoSync();
+  }, [inventory, history, supabaseUrl, supabaseAnonKey, isLiveMode]);
+
+  // Setters with persistent storage
+  const setOpenAiApiKey = async (val: string) => {
+    setOpenAiApiKeyLocal(val);
+    await AsyncStorage.setItem('@gemspotter_openai_key', val);
+  };
+  const setEbayClientId = async (val: string) => {
+    setEbayClientIdLocal(val);
+    await AsyncStorage.setItem('@gemspotter_ebay_client_id', val);
+  };
+  const setEbayClientSecret = async (val: string) => {
+    setEbayClientSecretLocal(val);
+    await AsyncStorage.setItem('@gemspotter_ebay_client_secret', val);
+  };
+  const setPhotoroomApiKey = async (val: string) => {
+    setPhotoroomApiKeyLocal(val);
+    await AsyncStorage.setItem('@gemspotter_photoroom_key', val);
+  };
+  const setSupabaseUrl = async (val: string) => {
+    setSupabaseUrlLocal(val);
+    await AsyncStorage.setItem('@gemspotter_supabase_url', val);
+  };
+  const setSupabaseAnonKey = async (val: string) => {
+    setSupabaseAnonKeyLocal(val);
+    await AsyncStorage.setItem('@gemspotter_supabase_anon_key', val);
+  };
+  const setIsLiveMode = async (val: boolean) => {
+    setIsLiveModeLocal(val);
+    await AsyncStorage.setItem('@gemspotter_is_live_mode', val ? 'true' : 'false');
+  };
+
+  // Photo handlers
+  const addCapturedPhoto = (uri: string) => {
+    setCapturedPhotos(prev => {
+      if (prev.length >= 12) return prev;
+      return [...prev, uri];
+    });
+  };
+
+  const removeCapturedPhoto = (uri: string) => {
+    setCapturedPhotos(prev => prev.filter(p => p !== uri));
+  };
+
+  const clearCapturedPhotos = () => {
+    setCapturedPhotos([]);
+  };
+
+  const syncLedger = async () => {
+    return await syncLedgerToSupabase(supabaseUrl, supabaseAnonKey, inventory, history);
+  };
 
   const saveHistory = async (val: ScanHistoryItem[]) => {
     setHistory(val);
@@ -177,6 +287,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setHistory([]);
     setInventory([]);
     setActiveScan(null);
+    setOpenAiApiKeyLocal('');
+    setEbayClientIdLocal('');
+    setEbayClientSecretLocal('');
+    setPhotoroomApiKeyLocal('');
+    setSupabaseUrlLocal('');
+    setSupabaseAnonKeyLocal('');
+    setIsLiveModeLocal(false);
+    setCapturedPhotos([]);
   };
 
   return (
@@ -193,6 +311,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         markAsSold,
         deleteInventoryItem,
         resetAllData,
+        openAiApiKey,
+        setOpenAiApiKey,
+        ebayClientId,
+        setEbayClientId,
+        ebayClientSecret,
+        setEbayClientSecret,
+        photoroomApiKey,
+        setPhotoroomApiKey,
+        supabaseUrl,
+        setSupabaseUrl,
+        supabaseAnonKey,
+        setSupabaseAnonKey,
+        isLiveMode,
+        setIsLiveMode,
+        capturedPhotos,
+        addCapturedPhoto,
+        removeCapturedPhoto,
+        clearCapturedPhotos,
+        syncLedger,
       }}
     >
       {children}

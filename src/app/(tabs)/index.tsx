@@ -10,29 +10,91 @@ import {
   Easing,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../../context/AppContext';
 import { COLORS } from '../../constants/theme';
 import { MOCK_SCANNABLE_ITEMS, ScannableItem } from '../../data/mockData';
 import { ValuationSheet } from '../../components/ValuationSheet';
 import { ListingSheet } from '../../components/ListingSheet';
+import { OnboardingModal } from '../../components/OnboardingModal';
 import { Zap, HelpCircle, RefreshCw } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { recognizeItem } from '../../services/aiService';
 
 export default function SourcingCameraScreen() {
-  const { performScan, activeScan, setActiveScan } = useApp();
+  const {
+    performScan,
+    activeScan,
+    setActiveScan,
+    openAiApiKey,
+    isLiveMode,
+    capturedPhotos,
+    addCapturedPhoto,
+    removeCapturedPhoto,
+    clearCapturedPhotos,
+    setOpenAiApiKey,
+    setEbayClientId,
+    setEbayClientSecret,
+    setPhotoroomApiKey,
+    setSupabaseUrl,
+    setSupabaseAnonKey,
+    setIsLiveMode,
+  } = useApp();
+
   const [selectedMock, setSelectedMock] = useState<ScannableItem>(MOCK_SCANNABLE_ITEMS[0]);
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState('Standby');
   const [flashActive, setFlashActive] = useState(false);
-  const [cameraPermission, requestCameraPermission] = ImagePicker.useCameraPermissions();
+  const [flashMode, setFlashMode] = useState<'off' | 'on' | 'auto'>('off');
+  const [zoom, setZoom] = useState(0);
+  
+  const [permission, requestPermission] = useCameraPermissions();
+  const cameraRef = useRef<any>(null);
+
+  // Onboarding Visibility
+  const [onboardingVisible, setOnboardingVisible] = useState(false);
 
   // Sheets Visibility
   const [valuationVisible, setValuationVisible] = useState(false);
   const [listingVisible, setListingVisible] = useState(false);
 
+  // Focus visual indicator coordinate state
+  const [focusCoords, setFocusCoords] = useState<{ x: number; y: number } | null>(null);
+
   // Animated values
   const scanLineAnim = useRef(new Animated.Value(0)).current;
   const overlayOpacityAnim = useRef(new Animated.Value(0.15)).current;
+  const focusScaleAnim = useRef(new Animated.Value(1)).current;
+
+  // Check onboarding status
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      const onboarded = await AsyncStorage.getItem('@gemspotter_onboarded');
+      if (onboarded !== 'true') {
+        setOnboardingVisible(true);
+      }
+    };
+    checkOnboarding();
+  }, []);
+
+  const handleOnboardingComplete = async (config: any) => {
+    try {
+      await setOpenAiApiKey(config.openAiApiKey);
+      await setEbayClientId(config.ebayClientId);
+      await setEbayClientSecret(config.ebayClientSecret);
+      await setPhotoroomApiKey(config.photoroomApiKey);
+      await setSupabaseUrl(config.supabaseUrl);
+      await setSupabaseAnonKey(config.supabaseAnonKey);
+      await setIsLiveMode(config.isLiveMode);
+      
+      await AsyncStorage.setItem('@gemspotter_onboarded', 'true');
+      setOnboardingVisible(false);
+      Alert.alert('Onboarding Complete', 'Your credentials have been securely saved.');
+    } catch (e) {
+      console.error('Failed to save onboarding credentials', e);
+    }
+  };
 
   // Scanner animation loop
   useEffect(() => {
@@ -78,86 +140,155 @@ export default function SourcingCameraScreen() {
     }
   }, [isScanning]);
 
-  const runScanningSequence = async (itemToScan: ScannableItem) => {
-    setIsScanning(true);
-    setScanProgress('Initializing Scanner...');
+  const handleTapToFocus = (event: any) => {
+    const { locationX, locationY } = event.nativeEvent;
+    setFocusCoords({ x: locationX, y: locationY });
+    focusScaleAnim.setValue(1.5);
+    Animated.spring(focusScaleAnim, {
+      toValue: 1,
+      tension: 100,
+      friction: 6,
+      useNativeDriver: true,
+    }).start();
 
-    // Phase 1: Initialize
+    // Fade out focus box after 1 second
     setTimeout(() => {
-      setScanProgress('Analyzing Object Contours...');
-    }, 800);
-
-    // Phase 2: AI Check
-    setTimeout(() => {
-      setScanProgress('Matching eBay Market Comps...');
-    }, 1600);
-
-    // Phase 3: Finalize scan
-    setTimeout(async () => {
-      setFlashActive(true);
-      setTimeout(() => setFlashActive(false), 200);
-
-      const success = await performScan(itemToScan);
-      setIsScanning(false);
-      setScanProgress('Standby');
-
-      if (success) {
-        setValuationVisible(true);
-      }
-    }, 2400);
+      setFocusCoords(null);
+    }, 1000);
   };
 
-  const handleStartScan = async () => {
-
-    Alert.alert(
-      'Sourcing Scanner',
-      'Select your scanning method. You can take a real photo, or run a simulated scan of the mock object.',
-      [
-        {
-          text: 'Camera: Take Photo',
-          onPress: handleRealCameraScan,
-        },
-        {
-          text: 'Simulated Scan',
-          onPress: () => runScanningSequence(selectedMock),
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
-  };
-
-  const handleRealCameraScan = async () => {
-    if (!cameraPermission || !cameraPermission.granted) {
-      const askResult = await requestCameraPermission();
+  const handleCapturePhoto = async () => {
+    if (!permission || !permission.granted) {
+      const askResult = await requestPermission();
       if (!askResult.granted) {
-        Alert.alert('Permission Required', 'Camera permission is required to take photos of items to scan.');
+        Alert.alert('Permission Required', 'Camera permission is required to capture items.');
         return;
       }
     }
 
+    if (capturedPhotos.length >= 12) {
+      Alert.alert('Limit Reached', 'You can capture up to 12 photos of an item.');
+      return;
+    }
+
+    if (cameraRef.current) {
+      try {
+        setFlashActive(true);
+        setTimeout(() => setFlashActive(false), 150);
+
+        const photo = await cameraRef.current.takePictureAsync({
+          quality: 0.8,
+          skipProcessing: false,
+        });
+
+        if (photo && photo.uri) {
+          addCapturedPhoto(photo.uri);
+        }
+      } catch (error) {
+        console.error('Failed to capture photo:', error);
+        Alert.alert('Error', 'Failed to capture photo from camera.');
+      }
+    } else {
+      // Shutter clicked before camera is loaded - trigger ImagePicker fallback
+      handleSelectImageFallback();
+    }
+  };
+
+  const handleSelectImageFallback = async () => {
     try {
-      const result = await ImagePicker.launchCameraAsync({
+      const result = await ImagePicker.launchImageLibraryAsync({
         allowsEditing: true,
         quality: 0.8,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const photoUri = result.assets[0].uri;
-        
-        const scannedItemWithPhoto: ScannableItem = {
-          ...selectedMock,
-          imageUrl: photoUri,
-        };
-        
-        runScanningSequence(scannedItemWithPhoto);
+        addCapturedPhoto(result.assets[0].uri);
       }
-    } catch (error) {
-      console.error('Failed to open camera', error);
-      Alert.alert('Error', 'Failed to launch camera.');
+    } catch (e) {
+      console.error(e);
     }
+  };
+
+  const runScanningSequence = async (primaryPhotoUri: string, isMock: boolean) => {
+    setIsScanning(true);
+    setScanProgress(isLiveMode ? 'Contacting Vision AI...' : 'Initializing Scanner...');
+
+    // Phase 1: Initialize
+    setTimeout(() => {
+      setScanProgress(isLiveMode ? 'Analyzing Photo Pixels...' : 'Analyzing Object Contours...');
+    }, 800);
+
+    // Phase 2: AI Check
+    setTimeout(() => {
+      setScanProgress(isLiveMode ? 'Fetching Real-time Sold Comps...' : 'Matching eBay Market Comps...');
+    }, 1600);
+
+    // Phase 3: Finalize scan
+    setTimeout(async () => {
+      try {
+        let scannedItem: ScannableItem;
+
+        if (isMock && !isLiveMode) {
+          // If we chose a mock, use mock comps directly
+          scannedItem = {
+            ...selectedMock,
+            imageUrl: primaryPhotoUri,
+          };
+        } else {
+          // Call OpenAI GPT-4o Vision service
+          const recognized = await recognizeItem(isLiveMode ? openAiApiKey : '', primaryPhotoUri);
+          
+          scannedItem = {
+            id: `scan-${Date.now()}`,
+            title: recognized.title || 'Identified Item',
+            category: recognized.category || 'Collectibles',
+            cogs: recognized.cogs || 0.00,
+            weightClass: recognized.weightClass || 'Medium',
+            description: recognized.description || '',
+            suggestedTitle: recognized.suggestedTitle || recognized.title || '',
+            suggestedDescription: recognized.suggestedDescription || '',
+            tags: recognized.tags || [],
+            imageUrl: primaryPhotoUri,
+            comps: [], // Will be populated in ValuationSheet live
+          };
+        }
+
+        const success = await performScan(scannedItem);
+        setIsScanning(false);
+        setScanProgress('Standby');
+
+        if (success) {
+          setValuationVisible(true);
+        }
+      } catch (err: any) {
+        setIsScanning(false);
+        setScanProgress('Standby');
+        Alert.alert('Scan Failed', err.message || 'Error occurred while identifying this item.');
+      }
+    }, 2400);
+  };
+
+  const handleStartScan = async () => {
+    if (capturedPhotos.length === 0) {
+      Alert.alert('No Photos', 'Please capture or select at least one photo first.');
+      return;
+    }
+    // Scan primary photo (first in array)
+    runScanningSequence(capturedPhotos[0], false);
+  };
+
+  const selectMockObject = (item: ScannableItem) => {
+    setSelectedMock(item);
+    clearCapturedPhotos();
+    addCapturedPhoto(item.imageUrl);
+  };
+
+  const toggleFlash = () => {
+    setFlashMode(prev => {
+      if (prev === 'off') return 'on';
+      if (prev === 'on') return 'auto';
+      return 'off';
+    });
   };
 
   return (
@@ -166,26 +297,91 @@ export default function SourcingCameraScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.logo}>GEMSPOTTER</Text>
-          <Text style={styles.planBadge}>AI SOURCING HUB</Text>
+          <Text style={styles.planBadge}>{isLiveMode ? 'LIVE PRODUCTION MODE' : 'SIMULATED MODE'}</Text>
+        </View>
+        <View style={styles.gemsCounter}>
+          <Text style={styles.gemsText}>
+            {isLiveMode ? 'API Live' : 'Offline'}
+          </Text>
         </View>
       </View>
 
       {/* Camera Viewport */}
       <View style={styles.cameraBox}>
-        {/* Mock background object image */}
-        <Image source={{ uri: selectedMock.imageUrl }} style={styles.cameraImage} />
+        {permission && permission.granted ? (
+          <CameraView
+            ref={cameraRef}
+            style={styles.cameraImage}
+            facing="back"
+            flash={flashMode}
+            zoom={zoom}
+          >
+            {/* Tap touch trigger overlay */}
+            <TouchableOpacity
+              activeOpacity={1}
+              style={StyleSheet.absoluteFill}
+              onPress={handleTapToFocus}
+            />
+          </CameraView>
+        ) : (
+          <View style={styles.permissionPrompt}>
+            <Image source={{ uri: selectedMock.imageUrl }} style={[styles.cameraImage, { opacity: 0.4 }]} />
+            <View style={styles.promptContent}>
+              <Text style={styles.promptText}>Camera access required for live scans.</Text>
+              <TouchableOpacity
+                style={styles.permissionBtn}
+                onPress={requestPermission}
+              >
+                <Text style={styles.permissionBtnText}>Grant Camera Access</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Tap to focus yellow square overlay */}
+        {focusCoords && (
+          <Animated.View
+            style={[
+              styles.focusBox,
+              {
+                left: focusCoords.x - 20,
+                top: focusCoords.y - 20,
+                transform: [{ scale: focusScaleAnim }],
+              },
+            ]}
+          />
+        )}
 
         {/* HUD grid overlays */}
-        <Animated.View style={[styles.cameraOverlay, { opacity: overlayOpacityAnim }]}>
+        <Animated.View style={[styles.cameraOverlay, { opacity: overlayOpacityAnim }]} pointerEvents="none">
           <View style={styles.gridLineHorizontal} />
           <View style={styles.gridLineVertical} />
         </Animated.View>
 
         {/* Viewfinder brackets */}
-        <View style={[styles.cornerBracket, styles.bracketTopLeft]} />
-        <View style={[styles.cornerBracket, styles.bracketTopRight]} />
-        <View style={[styles.cornerBracket, styles.bracketBottomLeft]} />
-        <View style={[styles.cornerBracket, styles.bracketBottomRight]} />
+        <View style={[styles.cornerBracket, styles.bracketTopLeft]} pointerEvents="none" />
+        <View style={[styles.cornerBracket, styles.bracketTopRight]} pointerEvents="none" />
+        <View style={[styles.cornerBracket, styles.bracketBottomLeft]} pointerEvents="none" />
+        <View style={[styles.cornerBracket, styles.bracketBottomRight]} pointerEvents="none" />
+
+        {/* Zoom & Flash Buttons Overlay */}
+        {permission?.granted && (
+          <View style={styles.cameraQuickControls}>
+            <TouchableOpacity onPress={toggleFlash} style={styles.camBtn}>
+              <Zap color={flashMode === 'off' ? '#9ca3af' : COLORS.accentCyan} size={18} />
+              <Text style={styles.camBtnText}>{flashMode.toUpperCase()}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setZoom(prev => (prev === 0 ? 0.2 : prev === 0.2 ? 0.4 : 0))}
+              style={styles.camBtn}
+            >
+              <Text style={[styles.camBtnText, { fontWeight: '800', color: COLORS.accentCyan }]}>
+                {zoom === 0 ? '1x' : zoom === 0.2 ? '2x' : '3x'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Scanner Laser Beam */}
         {isScanning && (
@@ -200,12 +396,12 @@ export default function SourcingCameraScreen() {
         )}
 
         {/* Flash animation */}
-        <View style={[styles.cameraFlash, flashActive && styles.cameraFlashActive]} />
+        <View style={[styles.cameraFlash, flashActive && styles.cameraFlashActive]} pointerEvents="none" />
 
         {/* Scanner Status Overlay */}
         {isScanning && (
           <View style={styles.scannerStatusCard}>
-            <RefreshCw color={COLORS.accentCyan} size={16} style={styles.spinIcon} />
+            <RefreshCw color={COLORS.accentCyan} size={16} />
             <Text style={styles.scannerStatusText}>{scanProgress}</Text>
           </View>
         )}
@@ -213,58 +409,118 @@ export default function SourcingCameraScreen() {
 
       {/* Control Area */}
       <View style={styles.controls}>
-        <Text style={styles.selectorLabel}>CHOOSE MOCK OBJECT TO SCAN</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.selectorScroll}
-        >
-          {MOCK_SCANNABLE_ITEMS.map((item) => {
-            const isSelected = selectedMock.id === item.id;
-            return (
-              <TouchableOpacity
-                key={item.id}
-                style={[
-                  styles.selectorCard,
-                  isSelected && styles.selectorCardActive,
-                ]}
-                onPress={() => !isScanning && setSelectedMock(item)}
-                disabled={isScanning}
-              >
-                <Image source={{ uri: item.imageUrl }} style={styles.selectorImage} />
-                <Text
-                  style={[
-                    styles.selectorTitle,
-                    isSelected && styles.selectorTitleActive,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {item.title}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        {/* Multi-photo thumbnail bar */}
+        {capturedPhotos.length > 0 && (
+          <View style={styles.thumbnailContainer}>
+            <Text style={styles.thumbnailHeader}>
+              CAPTURED PHOTOS ({capturedPhotos.length}/12)
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.thumbnailScroll}>
+              {capturedPhotos.map((photoUri, index) => (
+                <View key={index} style={styles.thumbWrapper}>
+                  <Image source={{ uri: photoUri }} style={styles.thumbImg} />
+                  <TouchableOpacity
+                    style={styles.deleteThumb}
+                    onPress={() => removeCapturedPhoto(photoUri)}
+                  >
+                    <Text style={styles.deleteThumbText}>×</Text>
+                  </TouchableOpacity>
+                  {index === 0 && (
+                    <View style={styles.primaryBadge}>
+                      <Text style={styles.primaryBadgeText}>MAIN</Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+              {capturedPhotos.length < 12 && (
+                <TouchableOpacity style={styles.addThumbBtn} onPress={handleSelectImageFallback}>
+                  <Text style={styles.addThumbText}>+</Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+          </View>
+        )}
 
-        {/* Big circular trigger button */}
+        {capturedPhotos.length === 0 && (
+          <>
+            <Text style={styles.selectorLabel}>CHOOSE MOCK OBJECT TO SCAN</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.selectorScroll}
+            >
+              {MOCK_SCANNABLE_ITEMS.map((item) => {
+                const isSelected = selectedMock.id === item.id;
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[
+                      styles.selectorCard,
+                      isSelected && styles.selectorCardActive,
+                    ]}
+                    onPress={() => !isScanning && selectMockObject(item)}
+                    disabled={isScanning}
+                  >
+                    <Image source={{ uri: item.imageUrl }} style={styles.selectorImage} />
+                    <Text
+                      style={[
+                        styles.selectorTitle,
+                        isSelected && styles.selectorTitleActive,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {item.title}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </>
+        )}
+
+        {/* Shutter & Scanning Center buttons */}
         <View style={styles.triggerWrapper}>
+          {capturedPhotos.length > 0 && !isScanning && (
+            <TouchableOpacity style={styles.clearBtn} onPress={clearCapturedPhotos}>
+              <Text style={styles.clearBtnText}>Clear All</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             style={[styles.triggerBtn, isScanning && styles.triggerBtnDisabled]}
-            onPress={handleStartScan}
+            onPress={handleCapturePhoto}
             disabled={isScanning}
           >
             <View style={styles.triggerInnerBtn}>
               <Text style={styles.triggerText}>
-                {isScanning ? 'SCANNING' : 'SCAN'}
+                SNAP
               </Text>
             </View>
           </TouchableOpacity>
+
+          {capturedPhotos.length > 0 ? (
+            <TouchableOpacity
+              style={[styles.scanBtn, isScanning && styles.triggerBtnDisabled]}
+              onPress={handleStartScan}
+              disabled={isScanning}
+            >
+              <Text style={styles.scanBtnText}>ANALYZE ({capturedPhotos.length})</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.scanBtn, isScanning && styles.triggerBtnDisabled]}
+              onPress={() => runScanningSequence(selectedMock.imageUrl, true)}
+              disabled={isScanning}
+            >
+              <Text style={styles.scanBtnText}>SIMULATE</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.infoHint}>
           <HelpCircle color={COLORS.textSecondary} size={12} />
           <Text style={styles.infoHintText}>
-            Simulated camera. Standard scans charge 1 Gem.
+            {isLiveMode ? 'Live Vision AI queries OpenAI GPT-4o.' : 'Simulated mode processes offline.'}
           </Text>
         </View>
       </View>
@@ -303,6 +559,11 @@ export default function SourcingCameraScreen() {
           />
         </>
       )}
+      {/* Onboarding Wizard */}
+      <OnboardingModal
+        visible={onboardingVisible}
+        onComplete={handleOnboardingComplete}
+      />
     </View>
   );
 }
@@ -518,14 +779,18 @@ const styles = StyleSheet.create({
     color: COLORS.accentCyan,
   },
   triggerWrapper: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 20,
     marginTop: 16,
+    width: '100%',
+    paddingHorizontal: 20,
   },
   triggerBtn: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: 'rgba(0, 240, 255, 0.15)',
     borderWidth: 2,
     borderColor: COLORS.accentCyan,
@@ -533,9 +798,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   triggerInnerBtn: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     backgroundColor: COLORS.accentCyan,
     alignItems: 'center',
     justifyContent: 'center',
@@ -550,9 +815,40 @@ const styles = StyleSheet.create({
   triggerText: {
     color: COLORS.bgDeep,
     fontFamily: 'Outfit',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1,
+  },
+  clearBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(244, 63, 94, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(244, 63, 94, 0.25)',
+    width: 90,
+    alignItems: 'center',
+  },
+  clearBtnText: {
+    color: COLORS.accentRose,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  scanBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 240, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: COLORS.borderGlow,
+    width: 90,
+    alignItems: 'center',
+  },
+  scanBtnText: {
+    color: COLORS.accentCyan,
+    fontSize: 10,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   infoHint: {
     flexDirection: 'row',
@@ -566,4 +862,143 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '500',
   },
+  cameraQuickControls: {
+    position: 'absolute',
+    right: 16,
+    top: 16,
+    gap: 12,
+    zIndex: 10,
+  },
+  camBtn: {
+    backgroundColor: 'rgba(5, 7, 12, 0.75)',
+    borderWidth: 1,
+    borderColor: COLORS.borderCard,
+    borderRadius: 18,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  camBtnText: {
+    color: 'white',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  permissionPrompt: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  promptContent: {
+    position: 'absolute',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  promptText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  permissionBtn: {
+    backgroundColor: COLORS.accentCyan,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+  },
+  permissionBtnText: {
+    color: COLORS.bgDeep,
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  focusBox: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+    borderWidth: 1.5,
+    borderColor: '#f59e0b',
+    borderRadius: 4,
+    zIndex: 10,
+  },
+  thumbnailContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 8,
+  },
+  thumbnailHeader: {
+    color: COLORS.textSecondary,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  thumbnailScroll: {
+    gap: 10,
+    paddingRight: 10,
+  },
+  thumbWrapper: {
+    position: 'relative',
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.borderCard,
+    overflow: 'hidden',
+  },
+  thumbImg: {
+    width: '100%',
+    height: '100%',
+  },
+  deleteThumb: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: 'rgba(5, 7, 12, 0.75)',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 5,
+  },
+  deleteThumbText: {
+    color: COLORS.accentRose,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 14,
+  },
+  primaryBadge: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 240, 255, 0.85)',
+    paddingVertical: 1,
+    alignItems: 'center',
+  },
+  primaryBadgeText: {
+    color: COLORS.bgDeep,
+    fontSize: 7,
+    fontWeight: '900',
+  },
+  addThumbBtn: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.accentCyan,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 240, 255, 0.03)',
+  },
+  addThumbText: {
+    color: COLORS.accentCyan,
+    fontSize: 20,
+    fontWeight: '600',
+  },
 });
+

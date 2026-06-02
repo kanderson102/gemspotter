@@ -1,4 +1,4 @@
-import { Calculator, Check, Plus, Tag } from 'lucide-react-native';
+import { Calculator, Check, Plus, Tag, RefreshCw } from 'lucide-react-native';
 import React, { useEffect, useState, useRef } from 'react';
 import {
   Image,
@@ -11,11 +11,14 @@ import {
   TouchableOpacity,
   View,
   Animated,
-  PanResponder
+  PanResponder,
+  ActivityIndicator
 } from 'react-native';
 import { COLORS } from '../constants/theme';
 import { useApp } from '../context/AppContext';
-import { ScannableItem } from '../data/mockData';
+import { ScannableItem, eBayComp } from '../data/mockData';
+import { searchSoldComps } from '../services/ebayService';
+import { getEbayFeeRate, getShippingCost, SHIPPING_COSTS } from '../services/shippingService';
 
 interface ValuationSheetProps {
   visible: boolean;
@@ -24,24 +27,39 @@ interface ValuationSheetProps {
   onList: () => void;
 }
 
-const SHIPPING_COSTS = {
-  Small: 6.00,
-  Medium: 12.00,
-  Large: 25.00,
-};
-
 export const ValuationSheet: React.FC<ValuationSheetProps> = ({
   visible,
   onClose,
   item,
   onList,
 }) => {
-  const { logToInventory } = useApp();
+  const { logToInventory, ebayClientId, ebayClientSecret, isLiveMode } = useApp();
   const [title, setTitle] = useState(item.suggestedTitle);
   const [cogs, setCogs] = useState('0');
   const [weightClass, setWeightClass] = useState<'Small' | 'Medium' | 'Large'>(item.weightClass);
   const [added, setAdded] = useState(false);
+  const [comps, setComps] = useState<eBayComp[]>(item.comps || []);
+  const [loadingComps, setLoadingComps] = useState(false);
   const translateY = useRef(new Animated.Value(0)).current;
+
+  // Fetch comps on open or update
+  const fetchComps = async () => {
+    setLoadingComps(true);
+    try {
+      const results = await searchSoldComps(
+        isLiveMode ? ebayClientId : '',
+        isLiveMode ? ebayClientSecret : '',
+        title || item.title,
+        weightClass
+      );
+      setComps(results);
+    } catch (err) {
+      console.warn('Failed to load live comps, using mocks:', err);
+      setComps(item.comps || []);
+    } finally {
+      setLoadingComps(false);
+    }
+  };
 
   // Sync title when item changes
   useEffect(() => {
@@ -49,14 +67,16 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
     setCogs('0');
     setWeightClass(item.weightClass);
     setAdded(false);
+    setComps(item.comps || []);
   }, [item]);
 
-  // Reset translateY when sheet opens
+  // Trigger search on sheet open
   useEffect(() => {
-    if (visible) {
+    if (visible && item) {
       translateY.setValue(0);
+      fetchComps();
     }
-  }, [visible]);
+  }, [visible, item]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -89,13 +109,13 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
     })
   ).current;
 
-  // Calculate pricing metrics
-  const compsCount = item.comps.length;
-  const avgPrice = item.comps.reduce((sum, comp) => sum + comp.price, 0) / compsCount;
+  // Calculate pricing metrics dynamically
+  const compsCount = comps.length;
+  const avgPrice = compsCount > 0 ? comps.reduce((sum, comp) => sum + comp.price, 0) / compsCount : 0;
   const currentCogs = parseFloat(cogs) || 0;
-  const currentShipping = SHIPPING_COSTS[weightClass];
-  const ebayFeeRate = 0.1325;
-  const platformFees = avgPrice * ebayFeeRate;
+  const currentShipping = getShippingCost(weightClass);
+  const ebayFeeRate = getEbayFeeRate(item.category);
+  const platformFees = (avgPrice * ebayFeeRate) + (compsCount > 0 ? 0.30 : 0);
 
   const netProfit = avgPrice - currentCogs - currentShipping - platformFees;
   const roi = currentCogs > 0 ? (netProfit / currentCogs) * 100 : 0;
@@ -106,6 +126,7 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
       title,
       cogs: currentCogs,
       weightClass,
+      comps, // Save current loaded comps with the inventory item
     });
     setAdded(true);
     setTimeout(() => {
@@ -226,25 +247,43 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
 
             {/* eBay comps */}
             <View style={styles.compsSection}>
-              <Text style={styles.sectionHeader}>Smart Comps (eBay Sold)</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.compsScroll}
-              >
-                {item.comps.map((comp) => (
-                  <View key={comp.id} style={styles.compCard}>
-                    <Image source={{ uri: comp.imageUrl }} style={styles.compImage} />
-                    <View style={styles.compDetails}>
-                      <Text style={styles.compTitle} numberOfLines={2}>
-                        {comp.title}
-                      </Text>
-                      <Text style={styles.compPrice}>${comp.price.toFixed(2)}</Text>
-                      <Text style={styles.compDate}>Sold: {comp.dateSold}</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text style={styles.sectionHeader}>Smart Comps ({isLiveMode ? 'eBay Live Sold' : 'Simulated'})</Text>
+                <TouchableOpacity onPress={fetchComps} disabled={loadingComps} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <RefreshCw color={COLORS.accentCyan} size={12} />
+                  <Text style={{ color: COLORS.accentCyan, fontSize: 10, fontWeight: '700' }}>Refresh</Text>
+                </TouchableOpacity>
+              </View>
+
+              {loadingComps ? (
+                <View style={{ height: 120, justifyContent: 'center', alignItems: 'center' }}>
+                  <ActivityIndicator color={COLORS.accentCyan} size="small" />
+                  <Text style={{ color: COLORS.textSecondary, fontSize: 10, marginTop: 8 }}>Querying sold listings...</Text>
+                </View>
+              ) : comps.length === 0 ? (
+                <View style={{ height: 120, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: COLORS.borderCard, borderRadius: 12, borderStyle: 'dashed' }}>
+                  <Text style={{ color: COLORS.textSecondary, fontSize: 11 }}>No sold comps found on eBay.</Text>
+                </View>
+              ) : (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.compsScroll}
+                >
+                  {comps.map((comp) => (
+                    <View key={comp.id} style={styles.compCard}>
+                      <Image source={{ uri: comp.imageUrl }} style={styles.compImage} />
+                      <View style={styles.compDetails}>
+                        <Text style={styles.compTitle} numberOfLines={2}>
+                          {comp.title}
+                        </Text>
+                        <Text style={styles.compPrice}>${comp.price.toFixed(2)}</Text>
+                        <Text style={styles.compDate}>Sold: {comp.dateSold}</Text>
+                      </View>
                     </View>
-                  </View>
-                ))}
-              </ScrollView>
+                  ))}
+                </ScrollView>
+              )}
             </View>
           </ScrollView>
 
