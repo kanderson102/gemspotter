@@ -56,6 +56,7 @@ export default function SettingsScreen() {
   const [showEbayId, setShowEbayId] = useState(false);
   const [showEbaySec, setShowEbaySec] = useState(false);
   const [showPhotoroom, setShowPhotoroom] = useState(false);
+  const [showEbayHelp, setShowEbayHelp] = useState(false);
 
   const handleResetData = () => {
     Alert.alert(
@@ -262,6 +263,38 @@ export default function SettingsScreen() {
                 placeholderTextColor={COLORS.textDark}
                 autoCapitalize="none"
               />
+              <TouchableOpacity onPress={() => setShowEbayHelp(!showEbayHelp)}>
+                <Text style={styles.setupLinkText}>
+                  {showEbayHelp ? 'Hide Setup Instructions' : 'How to find your RuName & configure Redirect URL? ↗'}
+                </Text>
+              </TouchableOpacity>
+
+              {showEbayHelp && (
+                <View style={styles.helpContainer}>
+                  <Text style={styles.helpTitle}>eBay RuName & Redirect Setup Guide:</Text>
+                  <Text style={styles.helpText}>
+                    1. Log in to the <Text style={styles.helpBold} onPress={() => Linking.openURL('https://developer.ebay.com/')}>eBay Developer Portal</Text>.
+                  </Text>
+                  <Text style={styles.helpText}>
+                    2. Go to <Text style={styles.helpBold}>Application Settings</Text> (Sandbox or Production).
+                  </Text>
+                  <Text style={styles.helpText}>
+                    3. Under <Text style={styles.helpBold}>User Tokens</Text>, click <Text style={styles.helpBold}>Get a Token</Text> or edit your <Text style={styles.helpBold}>RuName / Redirect Registry</Text>.
+                  </Text>
+                  <Text style={styles.helpText}>
+                    4. Your generated RuName (Redirect URI Name) is shown there (looks like: <Text style={styles.helpItalic}>Your_Name-YourAppN-gemspo-xxxx</Text>). Copy and paste it above.
+                  </Text>
+                  <Text style={styles.helpText}>
+                    5. <Text style={styles.helpImportant}>CRITICAL</Text>: In that same Registry setting on eBay, you MUST register the Redirect URL (or oauth redirect URL) as:
+                  </Text>
+                  <View style={styles.helpCodeBlock}>
+                    <Text style={styles.helpCodeText}>gemspotter://</Text>
+                  </View>
+                  <Text style={styles.helpText}>
+                    Without setting this Redirect URL, the eBay authorization screen will not be able to return to Gemspotter.
+                  </Text>
+                </View>
+              )}
 
               {/* Link Account status & button */}
               <Text style={[styles.toggleDesc, { marginTop: 8, color: COLORS.textSecondary }]}>
@@ -584,5 +617,52 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 4,
     textDecorationLine: 'underline',
+  },
+  helpContainer: {
+    backgroundColor: 'rgba(5, 7, 12, 0.4)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(0, 240, 255, 0.2)',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 6,
+    gap: 4,
+  },
+  helpTitle: {
+    color: COLORS.accentCyan,
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  helpText: {
+    color: COLORS.textSecondary,
+    fontSize: 10,
+    lineHeight: 14,
+  },
+  helpBold: {
+    color: COLORS.textPrimary,
+    fontWeight: '700',
+  },
+  helpItalic: {
+    fontStyle: 'italic',
+  },
+  helpImportant: {
+    color: COLORS.accentRose,
+    fontWeight: '700',
+  },
+  helpCodeBlock: {
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderColor: 'rgba(0, 240, 255, 0.1)',
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    alignSelf: 'flex-start',
+    marginVertical: 4,
+  },
+  helpCodeText: {
+    color: COLORS.accentCyan,
+    fontFamily: 'Courier',
+    fontSize: 10,
+    fontWeight: '700',
   },
 });

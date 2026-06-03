@@ -72,7 +72,7 @@ Gemspotter utilizes two distinct eBay API authentication flows:
 ### RuName & Login Configuration Steps:
 1. Register for an account on the [eBay Developer Portal](https://developer.ebay.com/).
 2. Generate your application **Client ID (App ID)** and **Client Secret (Cert ID)**.
-3. Configure your **RuName (Redirect URI Name)** in your eBay developer account settings and set the redirect URL to match your application deep link.
+3. Configure your **RuName (Redirect URI Name)** in your eBay developer account settings under the Redirect Registry, and set the Redirect URL to match your application's custom deep link scheme: `gemspotter://`
 4. Input your Client ID, Client Secret, and RuName on the **Settings** screen in Gemspotter.
 5. Tap **Link eBay Seller Account** to open a secure browser session, log in to your eBay account, and grant access. 
 6. Tokens are stored locally. The app automatically handles token expiration checks and refreshes your session on-demand before publishing listing drafts.
