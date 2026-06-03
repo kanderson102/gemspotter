@@ -2,8 +2,12 @@ import { Tabs } from 'expo-router';
 import { Camera, History, Package, Settings } from 'lucide-react-native';
 import { COLORS } from '../../constants/theme';
 import { View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, 10);
+
   return (
     <Tabs
       screenOptions={{
@@ -14,8 +18,8 @@ export default function TabsLayout() {
           backgroundColor: COLORS.bgDark,
           borderTopWidth: 1,
           borderTopColor: COLORS.borderCard,
-          height: 68,
-          paddingBottom: 10,
+          height: 56 + bottomPadding,
+          paddingBottom: bottomPadding,
           paddingTop: 8,
         },
         tabBarLabelStyle: {

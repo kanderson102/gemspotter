@@ -1,25 +1,26 @@
-import React, { useState, useEffect, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
+import { Database, HelpCircle, RefreshCw, Zap } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Image,
+  Alert,
   Animated,
   Easing,
-  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useApp } from '../../context/AppContext';
-import { COLORS } from '../../constants/theme';
-import { MOCK_SCANNABLE_ITEMS, ScannableItem } from '../../data/mockData';
-import { ValuationSheet } from '../../components/ValuationSheet';
+import { PinchGestureHandler, State } from 'react-native-gesture-handler';
 import { ListingSheet } from '../../components/ListingSheet';
 import { OnboardingModal } from '../../components/OnboardingModal';
-import { Zap, HelpCircle, RefreshCw, Database } from 'lucide-react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { ValuationSheet } from '../../components/ValuationSheet';
+import { COLORS } from '../../constants/theme';
+import { useApp } from '../../context/AppContext';
+import { MOCK_SCANNABLE_ITEMS, ScannableItem } from '../../data/mockData';
 import { recognizeItem } from '../../services/aiService';
 
 export default function SourcingCameraScreen() {
@@ -46,7 +47,39 @@ export default function SourcingCameraScreen() {
   const [flashActive, setFlashActive] = useState(false);
   const [flashMode, setFlashMode] = useState<'off' | 'on' | 'auto'>('off');
   const [zoom, setZoom] = useState(0);
-  
+
+  const baseZoom = useRef(0);
+
+  const onPinchGestureEvent = (event: any) => {
+    const scale = event.nativeEvent.scale;
+    let nextZoom = baseZoom.current + (scale - 1) * 0.8;
+    nextZoom = Math.max(0, Math.min(1, nextZoom));
+    setZoom(nextZoom);
+  };
+
+  const onPinchHandlerStateChange = (event: any) => {
+    if (event.nativeEvent.oldState === State.ACTIVE) {
+      baseZoom.current = zoom;
+    }
+  };
+
+  const cycleZoom = () => {
+    let nextZoom = 0;
+    if (zoom < 0.1) nextZoom = 0.2; // 2x
+    else if (zoom < 0.3) nextZoom = 0.4; // 3x
+    else if (zoom < 0.6) nextZoom = 0.8; // 5x
+    else nextZoom = 0.0; // 1x
+
+    setZoom(nextZoom);
+    baseZoom.current = nextZoom;
+  };
+
+  const getZoomLabel = () => {
+    const multiplier = 1 + zoom * 5;
+    if (multiplier <= 1.01) return '1x';
+    return `${multiplier.toFixed(1)}x`;
+  };
+
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<any>(null);
 
@@ -93,7 +126,7 @@ export default function SourcingCameraScreen() {
       await setEbayClientSecret(config.ebayClientSecret);
       await setPhotoroomApiKey(config.photoroomApiKey);
       await setIsLiveMode(config.isLiveMode);
-      
+
       await AsyncStorage.setItem('@gemspotter_onboarded', 'true');
       setOnboardingVisible(false);
       Alert.alert('Onboarding Complete', 'Your credentials have been securely saved.');
@@ -243,7 +276,7 @@ export default function SourcingCameraScreen() {
         } else {
           // Call OpenAI GPT-4o Vision service
           const recognized = await recognizeItem(isLiveMode ? openAiApiKey : '', primaryPhotoUri);
-          
+
           scannedItem = {
             id: `scan-${Date.now()}`,
             title: recognized.title || 'Identified Item',
@@ -315,20 +348,27 @@ export default function SourcingCameraScreen() {
       {/* Camera Viewport */}
       <View style={styles.cameraBox}>
         {permission && permission.granted ? (
-          <CameraView
-            ref={cameraRef}
-            style={styles.cameraImage}
-            facing="back"
-            flash={flashMode}
-            zoom={zoom}
+          <PinchGestureHandler
+            onGestureEvent={onPinchGestureEvent}
+            onHandlerStateChange={onPinchHandlerStateChange}
           >
-            {/* Tap touch trigger overlay */}
-            <TouchableOpacity
-              activeOpacity={1}
-              style={StyleSheet.absoluteFill}
-              onPress={handleTapToFocus}
-            />
-          </CameraView>
+            <View style={StyleSheet.absoluteFill}>
+              <CameraView
+                ref={cameraRef}
+                style={styles.cameraImage}
+                facing="back"
+                flash={flashMode}
+                zoom={zoom}
+              >
+                {/* Tap touch trigger overlay */}
+                <TouchableOpacity
+                  activeOpacity={1}
+                  style={StyleSheet.absoluteFill}
+                  onPress={handleTapToFocus}
+                />
+              </CameraView>
+            </View>
+          </PinchGestureHandler>
         ) : (
           <View style={styles.permissionPrompt}>
             <Image source={{ uri: selectedMock.imageUrl }} style={[styles.cameraImage, { opacity: 0.4 }]} />
@@ -379,11 +419,11 @@ export default function SourcingCameraScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => setZoom(prev => (prev === 0 ? 0.2 : prev === 0.2 ? 0.4 : 0))}
+              onPress={cycleZoom}
               style={styles.camBtn}
             >
               <Text style={[styles.camBtnText, { fontWeight: '800', color: COLORS.accentCyan }]}>
-                {zoom === 0 ? '1x' : zoom === 0.2 ? '2x' : '3x'}
+                {getZoomLabel()}
               </Text>
             </TouchableOpacity>
           </View>
@@ -447,7 +487,7 @@ export default function SourcingCameraScreen() {
           </View>
         )}
 
-        {showMockList && capturedPhotos.length === 0 && (
+        {!isLiveMode && showMockList && capturedPhotos.length === 0 && (
           <View style={{ marginBottom: 12 }}>
             <Text style={styles.selectorLabel}>CHOOSE MOCK OBJECT TO SCAN</Text>
             <ScrollView
@@ -490,9 +530,9 @@ export default function SourcingCameraScreen() {
             <TouchableOpacity style={styles.clearBtn} onPress={clearCapturedPhotos}>
               <Text style={styles.clearBtnText}>Clear All</Text>
             </TouchableOpacity>
-          ) : permission?.granted && capturedPhotos.length === 0 ? (
-            <TouchableOpacity 
-              style={[styles.mockToggleBtn, showMockList && styles.mockToggleBtnActive]} 
+          ) : !isLiveMode && permission?.granted && capturedPhotos.length === 0 ? (
+            <TouchableOpacity
+              style={[styles.mockToggleBtn, showMockList && styles.mockToggleBtnActive]}
               onPress={() => setShowMockList(!showMockList)}
             >
               <Database color={showMockList ? COLORS.accentCyan : '#9ca3af'} size={14} />
@@ -509,7 +549,7 @@ export default function SourcingCameraScreen() {
           >
             <View style={styles.triggerInnerBtn}>
               <Text style={styles.triggerText}>
-                SNAP
+                SCAN
               </Text>
             </View>
           </TouchableOpacity>
@@ -522,6 +562,8 @@ export default function SourcingCameraScreen() {
             >
               <Text style={styles.scanBtnText}>ANALYZE ({capturedPhotos.length})</Text>
             </TouchableOpacity>
+          ) : isLiveMode ? (
+            <View style={{ width: 105 }} />
           ) : (
             <TouchableOpacity
               style={[styles.scanBtn, isScanning && styles.triggerBtnDisabled]}

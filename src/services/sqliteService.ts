@@ -37,7 +37,8 @@ export const initSQLiteDB = async (): Promise<void> => {
         status TEXT,
         createdAt TEXT,
         soldPrice REAL,
-        shippingCost REAL
+        shippingCost REAL,
+        isMock INTEGER DEFAULT 0
       );
     `);
 
@@ -49,7 +50,8 @@ export const initSQLiteDB = async (): Promise<void> => {
         itemTitle TEXT,
         itemCategory TEXT,
         itemImageUrl TEXT,
-        itemRawData TEXT
+        itemRawData TEXT,
+        isMock INTEGER DEFAULT 0
       );
     `);
 
@@ -83,6 +85,7 @@ export const loadAllInventory = async (): Promise<InventoryItem[]> => {
       createdAt: row.createdAt,
       soldPrice: row.soldPrice !== null ? row.soldPrice : undefined,
       shippingCost: row.shippingCost !== null ? row.shippingCost : undefined,
+      isMock: row.isMock === 1,
     }));
   } catch (error) {
     console.error('SQLite loadAllInventory Error:', error);
@@ -100,8 +103,8 @@ export const saveSQLiteInventoryItem = async (item: InventoryItem): Promise<void
       `INSERT OR REPLACE INTO inventory (
         id, title, category, cogs, weightClass, description, 
         suggestedTitle, suggestedDescription, tags, imageUrl, 
-        status, createdAt, soldPrice, shippingCost
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        status, createdAt, soldPrice, shippingCost, isMock
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         item.id,
         item.title,
@@ -117,6 +120,7 @@ export const saveSQLiteInventoryItem = async (item: InventoryItem): Promise<void
         item.createdAt,
         item.soldPrice !== undefined ? item.soldPrice : null,
         item.shippingCost !== undefined ? item.shippingCost : null,
+        item.isMock ? 1 : 0,
       ]
     );
   } catch (error) {
@@ -149,6 +153,7 @@ export const loadAllHistory = async (): Promise<ScanHistoryItem[]> => {
     return rows.map(row => ({
       id: row.id,
       scannedAt: row.scannedAt,
+      isMock: row.isMock === 1,
       scannableItem: row.itemRawData ? JSON.parse(row.itemRawData) : {
         id: row.id,
         title: row.itemTitle || 'Unknown Item',
@@ -174,8 +179,8 @@ export const saveSQLiteHistoryItem = async (item: ScanHistoryItem): Promise<void
     const db = await getSQLiteDB();
     await db.runAsync(
       `INSERT OR REPLACE INTO history (
-        id, scannedAt, itemTitle, itemCategory, itemImageUrl, itemRawData
-      ) VALUES (?, ?, ?, ?, ?, ?)`,
+        id, scannedAt, itemTitle, itemCategory, itemImageUrl, itemRawData, isMock
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         item.id,
         item.scannedAt,
@@ -183,6 +188,7 @@ export const saveSQLiteHistoryItem = async (item: ScanHistoryItem): Promise<void
         item.scannableItem.category,
         item.scannableItem.imageUrl,
         JSON.stringify(item.scannableItem),
+        item.isMock ? 1 : 0,
       ]
     );
   } catch (error) {

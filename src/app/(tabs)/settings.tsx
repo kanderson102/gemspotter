@@ -27,6 +27,8 @@ import {
   EyeOff,
   AlertCircle,
 } from 'lucide-react-native';
+import * as WebBrowser from 'expo-web-browser';
+import { exchangeEbayCodeForToken } from '../../services/ebayService';
 
 export default function SettingsScreen() {
   const {
@@ -41,10 +43,17 @@ export default function SettingsScreen() {
     setPhotoroomApiKey,
     isLiveMode,
     setIsLiveMode,
+    ebayRuName,
+    setEbayRuName,
+    ebayUserToken,
+    setEbayUserToken,
+    setEbayRefreshToken,
+    setEbayTokenExpiresAt,
   } = useApp();
 
   // Password visibility flags
   const [showOpenAi, setShowOpenAi] = useState(false);
+  const [showEbayId, setShowEbayId] = useState(false);
   const [showEbaySec, setShowEbaySec] = useState(false);
   const [showPhotoroom, setShowPhotoroom] = useState(false);
 
@@ -64,6 +73,65 @@ export default function SettingsScreen() {
         },
       ]
     );
+  };
+
+  const handleLinkEbay = async () => {
+    if (ebayUserToken) {
+      Alert.alert(
+        'Unlink eBay Account',
+        'Do you want to unlink your eBay seller account from Gemspotter?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Unlink Account',
+            style: 'destructive',
+            onPress: async () => {
+              await setEbayUserToken('');
+              await setEbayRefreshToken('');
+              await setEbayTokenExpiresAt('');
+              Alert.alert('Account Unlinked', 'Your eBay seller account has been unlinked.');
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    if (!ebayClientId || !ebayClientSecret || !ebayRuName) {
+      Alert.alert('Credentials Required', 'Please configure your Client ID, Client Secret, and RuName first.');
+      return;
+    }
+
+    const authUrl = `https://auth.ebay.com/oauth2/authorize?client_id=${ebayClientId}&redirect_uri=${ebayRuName}&response_type=code&scope=https://api.ebay.com/oauth/api_scope/sell.inventory`;
+
+    try {
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, ebayRuName);
+      
+      if (result.type === 'success' && result.url) {
+        const match = result.url.match(/[?&]code=([^&]+)/);
+        const code = match ? decodeURIComponent(match[1]) : null;
+        
+        if (code) {
+          const tokens = await exchangeEbayCodeForToken(
+            ebayClientId,
+            ebayClientSecret,
+            code,
+            ebayRuName
+          );
+          
+          await setEbayUserToken(tokens.accessToken);
+          await setEbayRefreshToken(tokens.refreshToken);
+          await setEbayTokenExpiresAt(tokens.expiresAt.toString());
+          
+          Alert.alert('Success', 'Your eBay seller account has been linked successfully!');
+        } else {
+          Alert.alert('Auth Failed', 'Authorization code not found in redirect URL.');
+        }
+      }
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert('Error', error.message || 'Failed to complete eBay authentication.');
+    }
   };
 
   return (
@@ -149,14 +217,20 @@ export default function SettingsScreen() {
                 <ShoppingBag color={COLORS.accentCyan} size={14} />
                 <Text style={styles.fieldSectionTitle}>eBay App Credentials (Browse Comps)</Text>
               </View>
-              <TextInput
-                style={styles.fieldInput}
-                value={ebayClientId}
-                onChangeText={setEbayClientId}
-                placeholder="eBay App ID (Client ID)"
-                placeholderTextColor={COLORS.textDark}
-                autoCapitalize="none"
-              />
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.fieldInput}
+                  value={ebayClientId}
+                  onChangeText={setEbayClientId}
+                  placeholder="eBay App ID (Client ID)"
+                  placeholderTextColor={COLORS.textDark}
+                  secureTextEntry={!showEbayId}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity onPress={() => setShowEbayId(!showEbayId)} style={styles.eyeBtn}>
+                  {showEbayId ? <EyeOff color={COLORS.textSecondary} size={16} /> : <Eye color={COLORS.textSecondary} size={16} />}
+                </TouchableOpacity>
+              </View>
               <View style={[styles.inputWrapper, { marginTop: 6 }]}>
                 <TextInput
                   style={styles.fieldInput}
@@ -173,6 +247,39 @@ export default function SettingsScreen() {
               </View>
               <TouchableOpacity onPress={() => Linking.openURL('https://developer.ebay.com/')}>
                 <Text style={styles.setupLinkText}>Get Client ID & Secret from eBay Developer Portal ↗</Text>
+              </TouchableOpacity>
+
+              {/* RuName Input */}
+              <View style={[styles.fieldHeader, { marginTop: 12 }]}>
+                <Key color={COLORS.accentCyan} size={12} />
+                <Text style={styles.fieldSectionTitle}>eBay RuName (Redirect URI Name)</Text>
+              </View>
+              <TextInput
+                style={styles.fieldInput}
+                value={ebayRuName}
+                onChangeText={setEbayRuName}
+                placeholder="e.g. Kyle_Anderson-KyleAnde-gemspo-xyz"
+                placeholderTextColor={COLORS.textDark}
+                autoCapitalize="none"
+              />
+
+              {/* Link Account status & button */}
+              <Text style={[styles.toggleDesc, { marginTop: 8, color: COLORS.textSecondary }]}>
+                {ebayUserToken 
+                  ? 'eBay Seller Account is successfully linked! You can publish live drafts directly.' 
+                  : 'Link your seller account to authorize the app to publish listings on your behalf.'}
+              </Text>
+              
+              <TouchableOpacity
+                style={[
+                  styles.testBtn,
+                  ebayUserToken ? { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderColor: COLORS.accentEmerald, borderWidth: 1 } : {}
+                ]}
+                onPress={handleLinkEbay}
+              >
+                <Text style={[styles.testBtnText, ebayUserToken ? { color: COLORS.accentEmerald } : {}]}>
+                  {ebayUserToken ? 'Seller Account Linked ✅' : 'Link eBay Seller Account'}
+                </Text>
               </TouchableOpacity>
             </View>
 

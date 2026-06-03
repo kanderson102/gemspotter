@@ -1,18 +1,18 @@
+import { Check, ChevronLeft, ChevronRight, Shield, ShoppingBag, Sparkles } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  ScrollView,
-  Switch,
   Linking,
+  Modal,
   SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { COLORS } from '../constants/theme';
-import { Sparkles, ShoppingBag, Database, Key, ChevronRight, ChevronLeft, Check, Shield } from 'lucide-react-native';
 
 interface OnboardingModalProps {
   visible: boolean;
@@ -76,7 +76,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onCom
             <View style={styles.slide}>
               <Text style={styles.title}>GEMSPOTTER</Text>
               <Text style={styles.subtitle}>YOUR PRIVATE SOURCING COMPANION</Text>
-              
+
               <View style={styles.card}>
                 <Shield color={COLORS.accentCyan} size={32} style={styles.slideIcon} />
                 <Text style={styles.cardHeading}>100% Private & Decentralized</Text>
@@ -159,7 +159,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onCom
           {step === 3 && (
             <View style={styles.slide}>
               <Text style={styles.sectionHeader}>Market Comps & Sync</Text>
-              <Text style={styles.sectionDesc}>Set up eBay search APIs and cloud databases to backup your sourcing ledger.</Text>
+              <Text style={styles.sectionDesc}>Set up eBay search APIs.</Text>
 
               {/* eBay Credentials */}
               <View style={styles.inputGroup}>

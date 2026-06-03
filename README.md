@@ -1,6 +1,6 @@
 # Gemspotter 💎
 
-Gemspotter is an AI-powered reseller, sourcing, and business analytics native mobile application built exclusively for Android. It integrates item photo sourcing, eBay market comps valuation, automated SEO listing draft generation, and reseller profit ledger tracking in a single Android workflow.
+Gemspotter is an AI-powered Android app helping thrift store resellers with eBay sourcing, market research, and business analytics. It integrates item camera and photo sourcing, eBay market comps valuation, automated SEO listing draft generation, and reseller profit ledger tracking in a single workflow.
 
 ---
 
@@ -8,7 +8,6 @@ Gemspotter is an AI-powered reseller, sourcing, and business analytics native mo
 
 - **AI Sourcing Camera**: Launch the device camera, capture item images, and simulate a smart image scan targeting your thrift finds.
 - **Valuation Dashboard (Bottom Sheet)**: Instantly analyze potential net profits, estimated eBay sold comps, platform fees, and ROI percentage. Includes custom COGS adjustments and shipping weight selectors.
-- **Draggable Swipe Dismissal**: Modern bottom sheets ([ValuationSheet](src/components/ValuationSheet.tsx) & [ListingSheet](src/components/ListingSheet.tsx)) support native `PanResponder` vertical swipe-down dragging for seamless page navigation.
 - **AI Listing Assistant**: Generates studio-quality background-removed previews and SEO-optimized titles, descriptions, and tag descriptors.
 - **Scan History Sourcing Log**: Keep track of deferred sourcing scans. Integrates instant quick-logging with duplicates checking to prevent double entries in the ledger.
 - **Business Health Dashboard**: Live financial tracking of total net profits, sell-through percentage, average ROI, and active stock counts.
@@ -21,7 +20,8 @@ Gemspotter is an AI-powered reseller, sourcing, and business analytics native mo
 - **Routing**: [Expo Router](https://docs.expo.dev/router/introduction/) (File-based tab routing layout)
 - **Styling**: Native StyleSheet API (curated premium neon/glassmorphism dark palette)
 - **Icons**: [Lucide React Native](https://lucide.dev/)
-- **Local Database**: [@react-native-async-storage/async-storage](https://react-native-async-storage.github.io/async-storage/) for offline persistence
+- **Local Database**: [Expo SQLite](https://docs.expo.dev/versions/latest/sdk/sqlite/) for persistent transaction ledger & scan history
+- **Configuration Storage**: [@react-native-async-storage/async-storage](https://react-native-async-storage.github.io/async-storage/) for local credential storage and app state settings
 
 ---
 
@@ -63,26 +63,27 @@ When EAS completes, it outputs a download link and QR code hosted on your **expo
 
 ---
 
-## 🗄️ Supabase Database Schema Initialization
+## 🔑 eBay Seller Account Integration (OAuth 2.0)
 
-Due to security designs on the web, Supabase REST endpoints (PostgREST) do not allow executing raw database DDL commands (such as `CREATE TABLE`) using client-side API keys (Anon or Service Role keys). This prevents malicious users or reverse-engineered apps from executing destructive queries on your database structure.
+Gemspotter utilizes two distinct eBay API authentication flows:
+1. **Application-Only Flow (Client Credentials)**: Authenticates the application to search recently sold items and compute pricing metrics using the eBay Browse API.
+2. **User Authorization Flow (OAuth 2.0)**: Securely links your personal eBay seller account. This allows you to publish generated drafts (with background-removed images, SEO titles, descriptions, and categories) directly to your eBay storefront via the modern eBay Inventory API.
 
-Because of this security restriction, Gemspotter cannot automatically create the tables on its own on the very first load. Instead, the database tables must be initialized once by the database owner via the Supabase Dashboard:
-
-1. Go to the **Settings** screen in the Gemspotter app.
-2. Under **Supabase Cloud DB & Sync**, click the **Copy Supabase SQL Setup** button. This copies the table setup code to your clipboard.
-3. Open your project on the [Supabase Dashboard](https://supabase.com/dashboard).
-4. Navigate to the **SQL Editor** tab on the left menu.
-5. Create a new query, paste the copied SQL script, and click **Run**.
-6. Back in the Gemspotter app, click **Test Supabase Connection** to verify that the tables are detected and sync is ready!
+### RuName & Login Configuration Steps:
+1. Register for an account on the [eBay Developer Portal](https://developer.ebay.com/).
+2. Generate your application **Client ID (App ID)** and **Client Secret (Cert ID)**.
+3. Configure your **RuName (Redirect URI Name)** in your eBay developer account settings and set the redirect URL to match your application deep link.
+4. Input your Client ID, Client Secret, and RuName on the **Settings** screen in Gemspotter.
+5. Tap **Link eBay Seller Account** to open a secure browser session, log in to your eBay account, and grant access. 
+6. Tokens are stored locally. The app automatically handles token expiration checks and refreshes your session on-demand before publishing listing drafts.
 
 ---
 
 ## 🔒 Security & Key Management
 
-- **No Hardcoded Keys (`.env`):** Rather than baking keys into the source code `.env` files (which would allow anyone who reverse-engineers the app package to steal them), Gemspotter inputs keys at runtime.
-- **Device-Local Storage:** All API keys (OpenAI, eBay, Photoroom, Supabase) are saved locally in the phone's persistent storage (`AsyncStorage`) via the **Onboarding Wizard** or **Settings Dashboard**.
-- **Direct Transit:** Key payloads are only sent directly to official API endpoints (OpenAI API, eBay Developers, Photoroom API, Supabase URLs) and never pass through any secondary server.
+- **No Hardcoded Keys (`.env`):** Rather than baking keys into the source code `.env` files (which would allow anyone who reverse-engineers the app package to steal them), Gemspotter allows you to input keys at runtime.
+- **Device-Local Storage:** All API keys (OpenAI, eBay, Photoroom) are saved locally in the phone's persistent storage (`AsyncStorage`) via the **Onboarding Wizard** or **Settings Dashboard**.
+- **Direct Transit:** Key payloads are only sent directly to official API endpoints (OpenAI API, eBay Developers, Photoroom API) and never pass through any secondary server.
 
 ---
 

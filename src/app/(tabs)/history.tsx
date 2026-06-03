@@ -16,9 +16,11 @@ import { ValuationSheet } from '../../components/ValuationSheet';
 import { ListingSheet } from '../../components/ListingSheet';
 
 export default function ScanHistoryScreen() {
-  const { history, performScan, activeScan, setActiveScan, logToInventory, inventory } = useApp();
+  const { history, performScan, activeScan, setActiveScan, logToInventory, inventory, isLiveMode } = useApp();
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<ScanHistoryItem | null>(null);
   
+  const filteredHistory = isLiveMode ? history.filter(item => !item.isMock) : history;
+
   // Sheet States
   const [valuationVisible, setValuationVisible] = useState(false);
   const [listingVisible, setListingVisible] = useState(false);
@@ -42,7 +44,8 @@ export default function ScanHistoryScreen() {
   };
 
   const handleLogQuick = (item: ScanHistoryItem) => {
-    logToInventory(item.scannableItem);
+    // Keep isMock status same when logging to inventory
+    logToInventory(item.scannableItem, item.isMock);
     Alert.alert('Success', `${item.scannableItem.title} added to your Inventory!`);
   };
 
@@ -56,7 +59,7 @@ export default function ScanHistoryScreen() {
         </View>
       </View>
 
-      {history.length === 0 ? (
+      {filteredHistory.length === 0 ? (
         /* Empty State */
         <View style={styles.emptyContainer}>
           <View style={styles.emptyIconCircle}>
@@ -71,7 +74,7 @@ export default function ScanHistoryScreen() {
         /* History List */
         <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
 
-          {history.map((item) => {
+          {filteredHistory.map((item) => {
             const profit = calculateProfit(item);
             return (
               <TouchableOpacity

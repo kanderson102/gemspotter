@@ -23,9 +23,12 @@ import {
   Trash2,
   ExternalLink,
   Tag,
+  Camera,
+  Upload,
 } from 'lucide-react-native';
 import { ListingSheet } from '../../components/ListingSheet';
 import { MOCK_SCANNABLE_ITEMS } from '../../data/mockData';
+import * as ImagePicker from 'expo-image-picker';
 
 const SHIPPING_COSTS = {
   Small: 6.00,
@@ -39,6 +42,7 @@ export default function InventoryScreen() {
     addManualInventory,
     markAsSold,
     deleteInventoryItem,
+    isLiveMode,
   } = useApp();
 
   const [filter, setFilter] = useState<'All' | 'sourced' | 'listed' | 'sold'>('All');
@@ -55,17 +59,55 @@ export default function InventoryScreen() {
   const [cogs, setCogs] = useState('');
   const [weightClass, setWeightClass] = useState<'Small' | 'Medium' | 'Large'>('Medium');
   const [description, setDescription] = useState('');
+  const [manualImage, setManualImage] = useState<string | null>(null);
+
+  const handleSelectManualPhoto = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        allowsEditing: true,
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setManualImage(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.error('Failed to launch image library:', e);
+      Alert.alert('Error', 'Failed to open photo library.');
+    }
+  };
+
+  const handleTakeManualPhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Camera permission is required to take a photo.');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setManualImage(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.error('Failed to launch camera:', e);
+      Alert.alert('Error', 'Failed to open camera.');
+    }
+  };
 
   // Sold Form State
   const [soldPrice, setSoldPrice] = useState('');
   const [shippingCost, setShippingCost] = useState('');
 
+  const activeInventory = isLiveMode ? inventory.filter((item) => !item.isMock) : inventory;
+
   // Calculate Business Analytics
-  const totalItems = inventory.length;
-  const soldItems = inventory.filter((item) => item.status === 'sold');
+  const totalItems = activeInventory.length;
+  const soldItems = activeInventory.filter((item) => item.status === 'sold');
   const soldCount = soldItems.length;
 
-  const totalCogs = inventory.reduce((sum, item) => sum + item.cogs, 0);
+  const totalCogs = activeInventory.reduce((sum, item) => sum + item.cogs, 0);
 
   // Calculate Net Profits
   const totalNetProfit = soldItems.reduce((sum, item) => {
@@ -83,7 +125,7 @@ export default function InventoryScreen() {
   const totalSoldCogs = soldItems.reduce((sum, item) => sum + item.cogs, 0);
   const averageRoi = totalSoldCogs > 0 ? (totalNetProfit / totalSoldCogs) * 100 : 0;
 
-  const filteredItems = inventory.filter((item) => {
+  const filteredItems = activeInventory.filter((item) => {
     if (filter === 'All') return true;
     return item.status === filter;
   });
@@ -99,7 +141,7 @@ export default function InventoryScreen() {
       return;
     }
 
-    addManualInventory(title, category, costNum, weightClass, description);
+    addManualInventory(title, category, costNum, weightClass, description, manualImage || undefined);
     
     // Clear form & close
     setTitle('');
@@ -107,6 +149,7 @@ export default function InventoryScreen() {
     setCogs('');
     setWeightClass('Medium');
     setDescription('');
+    setManualImage(null);
     setAddModalVisible(false);
   };
 
@@ -383,11 +426,46 @@ export default function InventoryScreen() {
                         weightClass === size && styles.weightToggleTextActive,
                       ]}
                     >
-                      {size}
+                      {size} (${SHIPPING_COSTS[size]})
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
+              <Text style={styles.shippingExplanation}>
+                {weightClass === 'Small' && 'Small ($6): Under 1 lb (e.g., controllers, games, jewelry)'}
+                {weightClass === 'Medium' && 'Medium ($12): 1–5 lbs (e.g., jackets, shoes, books)'}
+                {weightClass === 'Large' && 'Large ($25): Over 5 lbs or bulky (e.g., Dutch ovens, consoles)'}
+              </Text>
+
+              <Text style={styles.formLabel}>ITEM PHOTO (OPTIONAL)</Text>
+              {manualImage ? (
+                <View style={styles.imagePreviewContainer}>
+                  <Image source={{ uri: manualImage }} style={styles.imagePreview} />
+                  <TouchableOpacity
+                    style={styles.removeImageBtn}
+                    onPress={() => setManualImage(null)}
+                  >
+                    <Text style={styles.removeImageBtnText}>Remove Photo</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.imageUploadGrid}>
+                  <TouchableOpacity
+                    style={styles.imageUploadBtn}
+                    onPress={handleTakeManualPhoto}
+                  >
+                    <Camera size={16} color={COLORS.accentCyan} />
+                    <Text style={styles.imageUploadBtnText}>Take Photo</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.imageUploadBtn}
+                    onPress={handleSelectManualPhoto}
+                  >
+                    <Upload size={16} color={COLORS.accentCyan} />
+                    <Text style={styles.imageUploadBtnText}>Upload Photo</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
               <Text style={styles.formLabel}>DESCRIPTION (OPTIONAL)</Text>
               <TextInput
@@ -812,5 +890,60 @@ const styles = StyleSheet.create({
   saveBtnText: {
     color: COLORS.bgDeep,
     fontWeight: '700',
+  },
+  imagePreviewContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  imagePreview: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    backgroundColor: COLORS.bgDark,
+  },
+  removeImageBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(244, 63, 94, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(244, 63, 94, 0.25)',
+  },
+  removeImageBtnText: {
+    color: COLORS.accentRose,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  imageUploadGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 8,
+  },
+  imageUploadBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: COLORS.borderCard,
+    borderRadius: 10,
+    paddingVertical: 10,
+  },
+  imageUploadBtnText: {
+    color: COLORS.textPrimary,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  shippingExplanation: {
+    color: COLORS.textSecondary,
+    fontSize: 10,
+    marginTop: 4,
+    marginBottom: 12,
+    fontStyle: 'italic',
+    lineHeight: 14,
   },
 });

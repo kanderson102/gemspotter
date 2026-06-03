@@ -26,12 +26,14 @@ export interface InventoryItem {
   createdAt: string;
   soldPrice?: number;
   shippingCost?: number;
+  isMock?: boolean;
 }
 
 export interface ScanHistoryItem {
   id: string;
   scannableItem: ScannableItem;
   scannedAt: string;
+  isMock?: boolean;
 }
 
 export interface AppContextType {
@@ -40,8 +42,8 @@ export interface AppContextType {
   activeScan: ScannableItem | null;
   setActiveScan: (item: ScannableItem | null) => void;
   performScan: (item: ScannableItem) => Promise<boolean>;
-  logToInventory: (item: ScannableItem) => void;
-  addManualInventory: (title: string, category: string, cogs: number, weightClass: 'Small' | 'Medium' | 'Large', description: string) => void;
+  logToInventory: (item: ScannableItem, isMock?: boolean) => void;
+  addManualInventory: (title: string, category: string, cogs: number, weightClass: 'Small' | 'Medium' | 'Large', description: string, imageUrl?: string) => void;
   generateListing: (itemId: string) => Promise<boolean>;
   markAsSold: (itemId: string, soldPrice: number, shippingCost: number) => void;
   deleteInventoryItem: (itemId: string) => void;
@@ -58,6 +60,14 @@ export interface AppContextType {
   setPhotoroomApiKey: (val: string) => Promise<void>;
   isLiveMode: boolean;
   setIsLiveMode: (val: boolean) => Promise<void>;
+  ebayRuName: string;
+  setEbayRuName: (val: string) => Promise<void>;
+  ebayUserToken: string;
+  setEbayUserToken: (val: string) => Promise<void>;
+  ebayRefreshToken: string;
+  setEbayRefreshToken: (val: string) => Promise<void>;
+  ebayTokenExpiresAt: string;
+  setEbayTokenExpiresAt: (val: string) => Promise<void>;
   
   // Captured Images for Multi-Photo Listings
   capturedPhotos: string[];
@@ -85,6 +95,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [ebayClientSecret, setEbayClientSecretLocal] = useState('');
   const [photoroomApiKey, setPhotoroomApiKeyLocal] = useState('');
   const [isLiveMode, setIsLiveModeLocal] = useState(false);
+  const [ebayRuName, setEbayRuNameLocal] = useState('');
+  const [ebayUserToken, setEbayUserTokenLocal] = useState('');
+  const [ebayRefreshToken, setEbayRefreshTokenLocal] = useState('');
+  const [ebayTokenExpiresAt, setEbayTokenExpiresAtLocal] = useState('');
 
   // Captured Images
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
@@ -144,12 +158,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const storedEbaySec = await AsyncStorage.getItem('@gemspotter_ebay_client_secret');
         const storedPhotoroom = await AsyncStorage.getItem('@gemspotter_photoroom_key');
         const storedLive = await AsyncStorage.getItem('@gemspotter_is_live_mode');
+        const storedRuName = await AsyncStorage.getItem('@gemspotter_ebay_runame');
+        const storedUserToken = await AsyncStorage.getItem('@gemspotter_ebay_user_token');
+        const storedRefreshToken = await AsyncStorage.getItem('@gemspotter_ebay_refresh_token');
+        const storedTokenExpires = await AsyncStorage.getItem('@gemspotter_ebay_token_expires_at');
 
         if (storedOpenAi !== null) setOpenAiApiKeyLocal(storedOpenAi);
         if (storedEbayId !== null) setEbayClientIdLocal(storedEbayId);
         if (storedEbaySec !== null) setEbayClientSecretLocal(storedEbaySec);
         if (storedPhotoroom !== null) setPhotoroomApiKeyLocal(storedPhotoroom);
         if (storedLive !== null) setIsLiveModeLocal(storedLive === 'true');
+        if (storedRuName !== null) setEbayRuNameLocal(storedRuName);
+        if (storedUserToken !== null) setEbayUserTokenLocal(storedUserToken);
+        if (storedRefreshToken !== null) setEbayRefreshTokenLocal(storedRefreshToken);
+        if (storedTokenExpires !== null) setEbayTokenExpiresAtLocal(storedTokenExpires);
       } catch (e) {
         console.error('Failed to load state', e);
       }
@@ -178,6 +200,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsLiveModeLocal(val);
     await AsyncStorage.setItem('@gemspotter_is_live_mode', val ? 'true' : 'false');
   };
+  const setEbayRuName = async (val: string) => {
+    setEbayRuNameLocal(val);
+    await AsyncStorage.setItem('@gemspotter_ebay_runame', val);
+  };
+  const setEbayUserToken = async (val: string) => {
+    setEbayUserTokenLocal(val);
+    await AsyncStorage.setItem('@gemspotter_ebay_user_token', val);
+  };
+  const setEbayRefreshToken = async (val: string) => {
+    setEbayRefreshTokenLocal(val);
+    await AsyncStorage.setItem('@gemspotter_ebay_refresh_token', val);
+  };
+  const setEbayTokenExpiresAt = async (val: string) => {
+    setEbayTokenExpiresAtLocal(val);
+    await AsyncStorage.setItem('@gemspotter_ebay_token_expires_at', val);
+  };
 
   // Photo handlers
   const addCapturedPhoto = (uri: string) => {
@@ -200,6 +238,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `history-${Date.now()}`,
       scannableItem: item,
       scannedAt: new Date().toISOString(),
+      isMock: !isLiveMode,
     };
 
     const updatedHistory = [newHistoryItem, ...history];
@@ -212,7 +251,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return true;
   };
 
-  const logToInventory = async (item: ScannableItem) => {
+  const logToInventory = async (item: ScannableItem, isMock?: boolean) => {
     const newItem: InventoryItem = {
       id: `inv-${Date.now()}`,
       title: item.title,
@@ -223,6 +262,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       imageUrl: item.imageUrl,
       status: 'sourced',
       createdAt: new Date().toISOString(),
+      isMock: isMock !== undefined ? isMock : !isLiveMode,
     };
 
     const updatedInventory = [newItem, ...inventory];
@@ -237,7 +277,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     category: string,
     cogs: number,
     weightClass: 'Small' | 'Medium' | 'Large',
-    description: string
+    description: string,
+    imageUrl?: string
   ) => {
     const newItem: InventoryItem = {
       id: `inv-${Date.now()}`,
@@ -246,9 +287,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       cogs,
       weightClass,
       description,
-      imageUrl: 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=500&auto=format&fit=crop&q=80',
+      imageUrl: imageUrl || 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=500&auto=format&fit=crop&q=80',
       status: 'sourced',
       createdAt: new Date().toISOString(),
+      isMock: false,
     };
 
     const updatedInventory = [newItem, ...inventory];
@@ -332,6 +374,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setPhotoroomApiKeyLocal('');
     setIsLiveModeLocal(false);
     setCapturedPhotos([]);
+    setEbayRuNameLocal('');
+    setEbayUserTokenLocal('');
+    setEbayRefreshTokenLocal('');
+    setEbayTokenExpiresAtLocal('');
   };
 
   return (
@@ -358,6 +404,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setPhotoroomApiKey,
         isLiveMode,
         setIsLiveMode,
+        ebayRuName,
+        setEbayRuName,
+        ebayUserToken,
+        setEbayUserToken,
+        ebayRefreshToken,
+        setEbayRefreshToken,
+        ebayTokenExpiresAt,
+        setEbayTokenExpiresAt,
         capturedPhotos,
         addCapturedPhoto,
         removeCapturedPhoto,

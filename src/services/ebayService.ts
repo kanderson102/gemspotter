@@ -52,6 +52,74 @@ export const getEbayAppToken = async (
 };
 
 /**
+ * Exchanges the eBay Auth Code for a User Access Token and Refresh Token
+ */
+export const exchangeEbayCodeForToken = async (
+  clientId: string,
+  clientSecret: string,
+  code: string,
+  ruName: string
+): Promise<{ accessToken: string; refreshToken: string; expiresAt: number }> => {
+  const authHeader = base64Encode(`${clientId}:${clientSecret}`);
+  
+  const response = await fetch('https://api.ebay.com/identity/v1/oauth2/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${authHeader}`,
+    },
+    body: `grant_type=authorization_code&code=${encodeURIComponent(code)}&redirect_uri=${encodeURIComponent(ruName)}`,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('eBay Token Exchange Error Output:', errorText);
+    throw new Error(`eBay User OAuth token exchange failed: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  const expiresAt = Date.now() + (data.expires_in * 1000);
+  return {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    expiresAt,
+  };
+};
+
+/**
+ * Refreshes an expired eBay User Access Token using the refresh token
+ */
+export const refreshEbayUserToken = async (
+  clientId: string,
+  clientSecret: string,
+  refreshToken: string
+): Promise<{ accessToken: string; expiresAt: number }> => {
+  const authHeader = base64Encode(`${clientId}:${clientSecret}`);
+  
+  const response = await fetch('https://api.ebay.com/identity/v1/oauth2/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${authHeader}`,
+    },
+    body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}&scope=https://api.ebay.com/oauth/api_scope/sell.inventory`,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('eBay Token Refresh Error Output:', errorText);
+    throw new Error(`eBay User OAuth token refresh failed: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  const expiresAt = Date.now() + (data.expires_in * 1000);
+  return {
+    accessToken: data.access_token,
+    expiresAt,
+  };
+};
+
+/**
  * Search eBay recently sold listings to calculate real-time comps.
  * Fallbacks to generated local items based on weightClass and title query if keys are missing.
  */

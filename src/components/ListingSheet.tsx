@@ -16,12 +16,12 @@ import {
   Linking,
 } from 'react-native';
 import { COLORS } from '../constants/theme';
-import { Sparkles, FileText, Check, AlertCircle, Trash2, ArrowLeft, ArrowRight, Upload } from 'lucide-react-native';
+import { Sparkles, FileText, Check, AlertCircle, Trash2, ArrowLeft, ArrowRight, Upload, Cpu, Camera } from 'lucide-react-native';
 import { ScannableItem } from '../data/mockData';
 import { useApp } from '../context/AppContext';
 import { removeBackground } from '../services/imageService';
 import { generateSeoDraft } from '../services/aiService';
-import { publishToEbay } from '../services/ebayService';
+import { publishToEbay, refreshEbayUserToken } from '../services/ebayService';
 
 interface ListingSheetProps {
   visible: boolean;
@@ -39,13 +39,20 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
   onSuccess,
 }) => {
   const {
-    generateListing,
-    logToInventory,
     inventory,
-    openAiApiKey,
-    photoroomApiKey,
-    isLiveMode,
+    logToInventory,
+    generateListing,
     capturedPhotos,
+    isLiveMode,
+    photoroomApiKey,
+    openAiApiKey,
+    ebayClientId,
+    ebayClientSecret,
+    ebayUserToken,
+    setEbayUserToken,
+    ebayRefreshToken,
+    ebayTokenExpiresAt,
+    setEbayTokenExpiresAt,
   } = useApp();
 
   const [loading, setLoading] = useState(true);
@@ -101,59 +108,75 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
     })
   ).current;
 
-  // Reset loading & trigger integrations when modal opens
+  const [isRemovingBackground, setIsRemovingBackground] = useState(false);
+  const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
+
+  const handleRemoveBackground = async () => {
+    if (!photoroomApiKey || photoroomApiKey.trim() === '') {
+      Alert.alert(
+        'Photoroom Key Required',
+        'Please configure your Photoroom API Key in the Settings page first.'
+      );
+      return;
+    }
+    
+    setIsRemovingBackground(true);
+    try {
+      const isolatedUri = await removeBackground(photoroomApiKey, photos[0]);
+      const updatedPhotos = [...photos];
+      updatedPhotos[0] = isolatedUri;
+      setPhotos(updatedPhotos);
+      Alert.alert('Success', 'Background isolated successfully!');
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('API Error', err.message || 'Photoroom background removal failed.');
+    } finally {
+      setIsRemovingBackground(false);
+    }
+  };
+
+  const handleGenerateSeo = async () => {
+    if (!openAiApiKey || openAiApiKey.trim() === '') {
+      Alert.alert(
+        'OpenAI Key Required',
+        'Please configure your OpenAI API Key in the Settings page first.'
+      );
+      return;
+    }
+
+    setIsGeneratingSeo(true);
+    try {
+      const draft = await generateSeoDraft(
+        openAiApiKey,
+        item.title,
+        item.category,
+        item.cogs,
+        item.weightClass
+      );
+      setTitle(draft.title || title);
+      setDescription(draft.description || description);
+      setTags(draft.tags || tags);
+      Alert.alert('Success', 'SEO optimized details generated!');
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('API Error', err.message || 'OpenAI SEO text generation failed.');
+    } finally {
+      setIsGeneratingSeo(false);
+    }
+  };
+
+  // Reset loading & load suggestions when modal opens
   useEffect(() => {
-    const runIntegrations = async () => {
-      if (!visible) return;
-      
+    if (visible) {
       setLoading(true);
-      // Initialize photos state with captured photos, fallback to item image
       const initialPhotos = capturedPhotos.length > 0 ? [...capturedPhotos] : [item.imageUrl];
       setPhotos(initialPhotos);
-
-      try {
-        if (isLiveMode) {
-          // 1. Photoroom Background Removal
-          setLoadingStatus('Isolating background via Photoroom...');
-          const isolatedUri = await removeBackground(photoroomApiKey, initialPhotos[0]);
-          
-          const updatedPhotos = [...initialPhotos];
-          updatedPhotos[0] = isolatedUri;
-          setPhotos(updatedPhotos);
-
-          // 2. OpenAI GPT SEO Text Writer
-          setLoadingStatus('Generating SEO Optimized listing...');
-          const draft = await generateSeoDraft(
-            openAiApiKey,
-            item.title,
-            item.category,
-            item.cogs,
-            item.weightClass
-          );
-
-          setTitle(draft.title);
-          setDescription(draft.description);
-          setTags(draft.tags);
-        } else {
-          // Simulate loading delay for demo
-          setLoadingStatus('Removing background...');
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          setTitle(item.suggestedTitle);
-          setDescription(item.suggestedDescription);
-          setTags(item.tags);
-        }
-      } catch (err) {
-        console.warn('API error during listing generation, using fallback:', err);
-        setTitle(item.suggestedTitle);
-        setDescription(item.suggestedDescription);
-        setTags(item.tags);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    runIntegrations();
-  }, [visible, item, isLiveMode]);
+      setTitle(item.suggestedTitle || item.title);
+      setDescription(item.suggestedDescription || '');
+      setTags(item.tags || []);
+      setLoading(false);
+    }
+  }, [visible]);
 
   // Gallery reordering
   const movePhoto = (index: number, direction: 'left' | 'right') => {
@@ -177,6 +200,14 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
   };
 
   const handlePublish = async () => {
+    if (isLiveMode && !ebayUserToken) {
+      Alert.alert(
+        'Account Not Linked',
+        'Please link your eBay seller account in Settings first to publish live drafts.'
+      );
+      return;
+    }
+
     setSaving(true);
     setSavingProgress('Saving to Inventory...');
     
@@ -184,6 +215,29 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
       let publicUrls = [...photos];
       
       if (isLiveMode) {
+        let activeToken = ebayUserToken;
+        const expiresAtNum = parseFloat(ebayTokenExpiresAt) || 0;
+        
+        // Refresh token if expired or close to expiring (within 2 minutes)
+        if (Date.now() > expiresAtNum - 120000) {
+          setSavingProgress('Refreshing eBay seller session...');
+          try {
+            const refreshed = await refreshEbayUserToken(
+              ebayClientId,
+              ebayClientSecret,
+              ebayRefreshToken
+            );
+            await setEbayUserToken(refreshed.accessToken);
+            await setEbayTokenExpiresAt(refreshed.expiresAt.toString());
+            activeToken = refreshed.accessToken;
+          } catch (e: any) {
+            console.error('Failed to refresh eBay token:', e);
+            Alert.alert('eBay Session Expired', 'Please link your eBay seller account in Settings again.');
+            setSaving(false);
+            return;
+          }
+        }
+
         setSavingProgress('Preparing listing pictures...');
         // Local file:/// URIs cannot be accessed by eBay, so we map them to a public placeholder
         publicUrls = photos.map(uri => {
@@ -192,9 +246,7 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
         });
 
         setSavingProgress('Publishing draft to eBay...');
-        const userAccessToken = ''; // Empty defaults to simulated successful publish
-
-        const result = await publishToEbay(userAccessToken, {
+        const result = await publishToEbay(activeToken, {
           title,
           description,
           category: item.category,
@@ -332,6 +384,39 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
                   </ScrollView>
                 </View>
 
+                {/* AI Magic Actions Row */}
+                <View style={styles.aiMagicRow}>
+                  <TouchableOpacity
+                    style={[styles.aiMagicBtn, isRemovingBackground && styles.aiMagicBtnDisabled]}
+                    onPress={handleRemoveBackground}
+                    disabled={isRemovingBackground}
+                  >
+                    {isRemovingBackground ? (
+                      <ActivityIndicator color={COLORS.accentCyan} size="small" />
+                    ) : (
+                      <Camera color={COLORS.accentCyan} size={14} />
+                    )}
+                    <Text style={styles.aiMagicBtnText}>
+                      {isRemovingBackground ? 'Isolating...' : 'Remove Background'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.aiMagicBtn, isGeneratingSeo && styles.aiMagicBtnDisabled]}
+                    onPress={handleGenerateSeo}
+                    disabled={isGeneratingSeo}
+                  >
+                    {isGeneratingSeo ? (
+                      <ActivityIndicator color={COLORS.accentPurple} size="small" />
+                    ) : (
+                      <Cpu color={COLORS.accentPurple} size={14} />
+                    )}
+                    <Text style={styles.aiMagicBtnText}>
+                      {isGeneratingSeo ? 'Generating...' : 'AI SEO Text'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+ 
                 {/* Draft fields */}
                 <View style={styles.card}>
                   <Text style={styles.inputLabel}>SEO OPTIMIZED TITLE</Text>
@@ -683,5 +768,31 @@ const styles = StyleSheet.create({
   },
   galleryActionBtnDisabled: {
     opacity: 0.35,
+  },
+  aiMagicRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+    paddingHorizontal: 2,
+  },
+  aiMagicBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: COLORS.borderCard,
+    borderRadius: 12,
+    paddingVertical: 10,
+  },
+  aiMagicBtnDisabled: {
+    opacity: 0.5,
+  },
+  aiMagicBtnText: {
+    color: COLORS.textPrimary,
+    fontSize: 11,
+    fontWeight: '600',
   },
 });
