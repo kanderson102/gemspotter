@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gemspotter - eBay Auth Success</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Plus+Jakarta+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-deep: #05070c;
+      --bg-card: rgba(15, 23, 42, 0.45);
+      --border-card: rgba(0, 240, 255, 0.15);
+      --accent-cyan: #00f0ff;
+      --accent-purple: #d946ef;
+      --accent-emerald: #10b981;
+      --text-primary: #ffffff;
+      --text-secondary: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-deep);
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(217, 70, 239, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(0, 240, 255, 0.08) 0%, transparent 40%);
+      color: var(--text-primary);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow-x: hidden;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 520px;
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border-card);
+      border-radius: 24px;
+      padding: 40px 32px;
+      box-shadow: 
+        0 20px 40px -15px rgba(0, 0, 0, 0.7),
+        0 0 50px -10px rgba(0, 240, 255, 0.1);
+      text-align: center;
+      position: relative;
+    }
+
+    .container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+      border-top-left-radius: 24px;
+      border-top-right-radius: 24px;
+    }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 64px;
+      height: 64px;
+      border-radius: 20px;
+      background: rgba(0, 240, 255, 0.06);
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      font-size: 32px;
+      margin-bottom: 24px;
+      animation: pulse 3s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 0 15px -3px rgba(0, 240, 255, 0.2);
+        border-color: rgba(0, 240, 255, 0.2);
+      }
+      50% {
+        box-shadow: 0 0 25px 2px rgba(0, 240, 255, 0.4);
+        border-color: rgba(0, 240, 255, 0.5);
+      }
+    }
+
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #ffffff 60%, var(--text-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      color: var(--accent-cyan);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+
+    .status-text {
+      color: var(--text-secondary);
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+
+    .code-box {
+      background: rgba(5, 7, 12, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 24px;
+      text-align: left;
+      position: relative;
+    }
+
+    .code-label {
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .code-value {
+      color: var(--accent-cyan);
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+      font-weight: 700;
+      word-break: break-all;
+      line-height: 1.5;
+      max-height: 120px;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
+
+    .code-value::-webkit-scrollbar {
+      width: 4px;
+    }
+    .code-value::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 16px 24px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: var(--accent-cyan);
+      color: var(--bg-deep);
+      box-shadow: 0 4px 20px rgba(0, 240, 255, 0.25);
+    }
+    .btn-primary:hover {
+      background: #33f5ff;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(0, 240, 255, 0.35);
+    }
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-primary);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
+    }
+    .btn-secondary:active {
+      transform: translateY(0);
+    }
+
+    .success-badge {
+      color: var(--accent-emerald);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-top: 16px;
+      opacity: 0;
+      transform: translateY(5px);
+      transition: all 0.3s ease;
+    }
+
+    .success-badge.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="logo-badge">💎</div>
+    <h1 id="title-header">eBay Authorization</h1>
+    <div class="subtitle" id="subtitle-header">Authentication Pending</div>
+    
+    <p class="status-text" id="status-desc">
+      Extracting authorization code parameters from the secure callback...
+    </p>
+
+    <div class="code-box" id="code-container" style="display: none;">
+      <span class="code-label">Authorization Code</span>
+      <div class="code-value" id="code-text"></div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-primary" id="copy-btn" style="display: none;" onclick="copyCode()">
+        Copy Authorization Code
+      </button>
+      <a href="gemspotter://" class="btn btn-secondary" id="app-btn" style="display: none;">
+        Launch Gemspotter App
+      </a>
+    </div>
+
+    <div class="success-badge" id="success-alert">
+      ✓ Code copied to clipboard! Paste it in the app settings.
+    </div>
+  </div>
+
+  <script>
+    // Get query parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+
+    const titleHeader = document.getElementById('title-header');
+    const subtitleHeader = document.getElementById('subtitle-header');
+    const statusDesc = document.getElementById('status-desc');
+    const codeContainer = document.getElementById('code-container');
+    const codeText = document.getElementById('code-text');
+    const copyBtn = document.getElementById('copy-btn');
+    const appBtn = document.getElementById('app-btn');
+
+    if (code) {
+      // Set success layout
+      titleHeader.innerText = "Auth Successful! ✓";
+      subtitleHeader.innerText = "Seller Account Authenticated";
+      subtitleHeader.style.color = "var(--accent-emerald)";
+      statusDesc.innerText = "Copy the code below, close this page, and paste it into Gemspotter settings.";
+      
+      codeText.innerText = code;
+      codeContainer.style.display = "block";
+      copyBtn.style.display = "flex";
+      appBtn.style.display = "flex";
+
+      // Dynamically append code to app deep link
+      appBtn.href = "gemspotter://redirect?code=" + encodeURIComponent(code);
+    } else {
+      // Error/No code layout
+      titleHeader.innerText = "Configuration Error";
+      subtitleHeader.innerText = "No Code Found";
+      subtitleHeader.style.color = "var(--accent-purple)";
+      statusDesc.innerHTML = "This redirect page needs to be launched via eBay's authorization flow. Make sure you set your <strong>Accepted URL</strong> in the eBay Developer Portal to this address.";
+    }
+
+    function copyCode() {
+      if (!code) return;
+      navigator.clipboard.writeText(code).then(() => {
+        const successAlert = document.getElementById('success-alert');
+        successAlert.classList.add('show');
+        
+        const copyBtn = document.getElementById('copy-btn');
+        copyBtn.innerText = "Copied ✅";
+        copyBtn.style.borderColor = "var(--accent-emerald)";
+
+        setTimeout(() => {
+          successAlert.classList.remove('show');
+          copyBtn.innerText = "Copy Authorization Code";
+          copyBtn.style.borderColor = "";
+        }, 3000);
+      });
+    }
+  </script>
+</body>
+</html>

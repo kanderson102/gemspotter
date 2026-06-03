@@ -109,7 +109,7 @@ export default function SettingsScreen() {
     const authUrl = `https://${authDomain}/oauth2/authorize?client_id=${ebayClientId}&redirect_uri=${ebayRuName}&response_type=code&scope=https://api.ebay.com/oauth/api_scope/sell.inventory`;
 
     try {
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, 'https://httpbin.org/anything');
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, 'https://kanderson102.github.io/gemspotter/');
       
       if (result.type === 'success' && result.url) {
         const match = result.url.match(/[?&]code=([^&]+)/);
@@ -321,10 +321,10 @@ export default function SettingsScreen() {
                     5. <Text style={styles.helpImportant}>CRITICAL</Text>: Since the eBay developer portal registry requires a secure HTTPS callback URL, you must register the Redirect URL (both accepted and declined URLs) as:
                   </Text>
                   <View style={styles.helpCodeBlock}>
-                    <Text style={styles.helpCodeText}>https://httpbin.org/anything</Text>
+                    <Text style={styles.helpCodeText}>https://kanderson102.github.io/gemspotter/</Text>
                   </View>
                   <Text style={styles.helpText}>
-                    After you authorize on eBay, you'll be redirected to that page, which echoes your auth code in JSON format. Simply copy the code value next to "code", close the browser, and paste it below!
+                    After you authorize on eBay, you'll be redirected to your secure landing page. Tap "Copy" or "Launch App" to return to Gemspotter and link your account automatically or manually!
                   </Text>
                 </View>
               )}
