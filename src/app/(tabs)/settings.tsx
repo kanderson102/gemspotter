@@ -104,10 +104,12 @@ export default function SettingsScreen() {
       return;
     }
 
-    const authUrl = `https://auth.ebay.com/oauth2/authorize?client_id=${ebayClientId}&redirect_uri=${ebayRuName}&response_type=code&scope=https://api.ebay.com/oauth/api_scope/sell.inventory`;
+    const isSandbox = ebayClientId.toLowerCase().includes('sbx');
+    const authDomain = isSandbox ? 'auth.sandbox.ebay.com' : 'auth.ebay.com';
+    const authUrl = `https://${authDomain}/oauth2/authorize?client_id=${ebayClientId}&redirect_uri=${ebayRuName}&response_type=code&scope=https://api.ebay.com/oauth/api_scope/sell.inventory`;
 
     try {
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, ebayRuName);
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, 'https://httpbin.org/anything');
       
       if (result.type === 'success' && result.url) {
         const match = result.url.match(/[?&]code=([^&]+)/);
@@ -310,7 +312,7 @@ export default function SettingsScreen() {
                     2. Go to <Text style={styles.helpBold}>Application Settings</Text> (Sandbox or Production).
                   </Text>
                   <Text style={styles.helpText}>
-                    3. Under <Text style={styles.helpBold}>User Tokens</Text>, click <Text style={styles.helpBold}>Get a Token</Text> or edit your <Text style={styles.helpBold}>RuName / Redirect Registry</Text>.
+                    3. Under <Text style={styles.helpBold}>User Tokens</Text>, select <Text style={styles.helpBold}>OAuth</Text> (do NOT select legacy Auth'n'Auth) and edit your <Text style={styles.helpBold}>RuName / Redirect Registry</Text>.
                   </Text>
                   <Text style={styles.helpText}>
                     4. Your generated RuName (Redirect URI Name) is shown there (looks like: <Text style={styles.helpItalic}>Your_Name-YourAppN-gemspo-xxxx</Text>). Copy and paste it above.
