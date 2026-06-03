@@ -33,8 +33,12 @@ export const getEbayAppToken = async (
   clientSecret: string
 ): Promise<string> => {
   const authHeader = base64Encode(`${clientId}:${clientSecret}`);
+  const isSandbox = clientId.toLowerCase().includes('sbx');
+  const tokenUrl = isSandbox
+    ? 'https://api.sandbox.ebay.com/identity/v1/oauth2/token'
+    : 'https://api.ebay.com/identity/v1/oauth2/token';
   
-  const response = await fetch('https://api.ebay.com/identity/v1/oauth2/token', {
+  const response = await fetch(tokenUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -61,8 +65,12 @@ export const exchangeEbayCodeForToken = async (
   ruName: string
 ): Promise<{ accessToken: string; refreshToken: string; expiresAt: number }> => {
   const authHeader = base64Encode(`${clientId}:${clientSecret}`);
+  const isSandbox = clientId.toLowerCase().includes('sbx');
+  const tokenUrl = isSandbox
+    ? 'https://api.sandbox.ebay.com/identity/v1/oauth2/token'
+    : 'https://api.ebay.com/identity/v1/oauth2/token';
   
-  const response = await fetch('https://api.ebay.com/identity/v1/oauth2/token', {
+  const response = await fetch(tokenUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -95,8 +103,12 @@ export const refreshEbayUserToken = async (
   refreshToken: string
 ): Promise<{ accessToken: string; expiresAt: number }> => {
   const authHeader = base64Encode(`${clientId}:${clientSecret}`);
+  const isSandbox = clientId.toLowerCase().includes('sbx');
+  const tokenUrl = isSandbox
+    ? 'https://api.sandbox.ebay.com/identity/v1/oauth2/token'
+    : 'https://api.ebay.com/identity/v1/oauth2/token';
   
-  const response = await fetch('https://api.ebay.com/identity/v1/oauth2/token', {
+  const response = await fetch(tokenUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -169,10 +181,12 @@ export const searchSoldComps = async (
 
   try {
     const token = await getEbayAppToken(clientId, clientSecret);
+    const isSandbox = clientId.toLowerCase().includes('sbx');
+    const searchBaseUrl = isSandbox ? 'https://api.sandbox.ebay.com' : 'https://api.ebay.com';
     
     // Call Browse API Search endpoint
     // For Sold items, query with filter: salesState:COMPLETED
-    const searchUrl = `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&filter=buyingOptions:{FIXED_PRICE}&limit=10`;
+    const searchUrl = `${searchBaseUrl}/buy/browse/v1/item_summary/search?q=${encodeURIComponent(query)}&filter=buyingOptions:{FIXED_PRICE}&limit=10`;
     
     const response = await fetch(searchUrl, {
       method: 'GET',
@@ -213,6 +227,7 @@ export const searchSoldComps = async (
  * Publishes a completed reseller listing draft to the user's eBay seller account
  */
 export const publishToEbay = async (
+  clientId: string,
   userAccessToken: string,
   listingData: {
     title: string;
@@ -235,10 +250,13 @@ export const publishToEbay = async (
 
   try {
     const sku = `GS-SKU-${Date.now()}`;
-    const cleanUrl = 'https://api.ebay.com/sell/inventory/v1';
+    const isSandbox = clientId.toLowerCase().includes('sbx');
+    const baseApiUrl = isSandbox 
+      ? 'https://api.sandbox.ebay.com/sell/inventory/v1' 
+      : 'https://api.ebay.com/sell/inventory/v1';
 
     // 1. Create inventory item
-    const inventoryItemUrl = `${cleanUrl}/inventory_item/${sku}`;
+    const inventoryItemUrl = `${baseApiUrl}/inventory_item/${sku}`;
     const invBody = {
       product: {
         title: listingData.title,
@@ -268,7 +286,7 @@ export const publishToEbay = async (
     }
 
     // 2. Create Offer
-    const offerUrl = `${cleanUrl}/offer`;
+    const offerUrl = `${baseApiUrl}/offer`;
     const offerBody = {
       sku,
       marketplaceId: 'EBAY_US',
@@ -307,7 +325,7 @@ export const publishToEbay = async (
     const offerId = offerData.offerId;
 
     // 3. Publish Offer
-    const publishUrl = `${cleanUrl}/offer/${offerId}/publish`;
+    const publishUrl = `${baseApiUrl}/offer/${offerId}/publish`;
     const publishRes = await fetch(publishUrl, {
       method: 'POST',
       headers: {

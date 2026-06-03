@@ -246,7 +246,7 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
         });
 
         setSavingProgress('Publishing draft to eBay...');
-        const result = await publishToEbay(activeToken, {
+        const result = await publishToEbay(ebayClientId, activeToken, {
           title,
           description,
           category: item.category,
