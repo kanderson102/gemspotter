@@ -57,6 +57,7 @@ export default function SettingsScreen() {
   const [showEbaySec, setShowEbaySec] = useState(false);
   const [showPhotoroom, setShowPhotoroom] = useState(false);
   const [showEbayHelp, setShowEbayHelp] = useState(false);
+  const [manualAuthCode, setManualAuthCode] = useState('');
 
   const handleResetData = () => {
     Alert.alert(
@@ -132,6 +133,36 @@ export default function SettingsScreen() {
     } catch (error: any) {
       console.error(error);
       Alert.alert('Error', error.message || 'Failed to complete eBay authentication.');
+    }
+  };
+
+  const handleManualAuthCode = async () => {
+    if (!manualAuthCode.trim()) {
+      Alert.alert('Error', 'Please paste the authorization code first.');
+      return;
+    }
+    if (!ebayClientId || !ebayClientSecret || !ebayRuName) {
+      Alert.alert('Credentials Required', 'Please configure your Client ID, Client Secret, and RuName first.');
+      return;
+    }
+
+    try {
+      const tokens = await exchangeEbayCodeForToken(
+        ebayClientId,
+        ebayClientSecret,
+        manualAuthCode.trim(),
+        ebayRuName
+      );
+      
+      await setEbayUserToken(tokens.accessToken);
+      await setEbayRefreshToken(tokens.refreshToken);
+      await setEbayTokenExpiresAt(tokens.expiresAt.toString());
+      setManualAuthCode('');
+      
+      Alert.alert('Success', 'Your eBay seller account has been linked successfully!');
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert('Error', error.message || 'Failed to complete eBay authentication. Please check your credentials and make sure the code is correct.');
     }
   };
 
@@ -285,13 +316,13 @@ export default function SettingsScreen() {
                     4. Your generated RuName (Redirect URI Name) is shown there (looks like: <Text style={styles.helpItalic}>Your_Name-YourAppN-gemspo-xxxx</Text>). Copy and paste it above.
                   </Text>
                   <Text style={styles.helpText}>
-                    5. <Text style={styles.helpImportant}>CRITICAL</Text>: In that same Registry setting on eBay, you MUST register the Redirect URL (or oauth redirect URL) as:
+                    5. <Text style={styles.helpImportant}>CRITICAL</Text>: Since the eBay developer portal registry requires a secure HTTPS callback URL, you must register the Redirect URL (both accepted and declined URLs) as:
                   </Text>
                   <View style={styles.helpCodeBlock}>
-                    <Text style={styles.helpCodeText}>gemspotter://</Text>
+                    <Text style={styles.helpCodeText}>https://auth.expo.fyi</Text>
                   </View>
                   <Text style={styles.helpText}>
-                    Without setting this Redirect URL, the eBay authorization screen will not be able to return to Gemspotter.
+                    After you authorize on eBay, you'll be redirected to that page, which displays your authorization code. Simply copy the code, close the browser, and paste it below!
                   </Text>
                 </View>
               )}
@@ -314,6 +345,25 @@ export default function SettingsScreen() {
                   {ebayUserToken ? 'Seller Account Linked ✅' : 'Link eBay Seller Account'}
                 </Text>
               </TouchableOpacity>
+
+              {!ebayUserToken && (
+                <View style={styles.manualCodeContainer}>
+                  <Text style={styles.manualCodeLabel}>Or paste the Authorization Code manually:</Text>
+                  <View style={[styles.inputWrapper, { alignItems: 'stretch' }]}>
+                    <TextInput
+                      style={[styles.fieldInput, { borderTopRightRadius: 0, borderBottomRightRadius: 0 }]}
+                      value={manualAuthCode}
+                      onChangeText={setManualAuthCode}
+                      placeholder="Paste code from browser here..."
+                      placeholderTextColor={COLORS.textDark}
+                      autoCapitalize="none"
+                    />
+                    <TouchableOpacity style={styles.submitCodeBtn} onPress={handleManualAuthCode}>
+                      <Text style={styles.submitCodeBtnText}>Submit</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
             </View>
 
             {/* Photoroom Section */}
@@ -664,5 +714,29 @@ const styles = StyleSheet.create({
     fontFamily: 'Courier',
     fontSize: 10,
     fontWeight: '700',
+  },
+  manualCodeContainer: {
+    marginTop: 12,
+    borderTopWidth: 0.5,
+    borderTopColor: COLORS.borderCard,
+    paddingTop: 12,
+    gap: 6,
+  },
+  manualCodeLabel: {
+    color: COLORS.textSecondary,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  submitCodeBtn: {
+    backgroundColor: COLORS.accentCyan,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    borderTopRightRadius: 10,
+    borderBottomRightRadius: 10,
+  },
+  submitCodeBtnText: {
+    color: COLORS.bgDeep,
+    fontWeight: '700',
+    fontSize: 11,
   },
 });
