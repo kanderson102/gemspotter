@@ -25,7 +25,7 @@ const blobToBase64 = (blob: Blob): Promise<string> => {
  */
 export const recognizeItem = async (
   apiKey: string,
-  imageUri: string
+  imageUris: string[]
 ): Promise<Partial<ScannableItem>> => {
   if (!apiKey) {
     // If no key is set, wait 1.5s to simulate network latency, then return a random mock item
@@ -43,16 +43,42 @@ export const recognizeItem = async (
   }
 
   try {
-    let imageUrlPayload = '';
+    const contentPayload: any[] = [
+      {
+        type: 'text',
+        text: `Identify the object in these images and return a JSON object ONLY. Do not write markdown tags around the JSON.
+        The JSON object must match this schema:
+        {
+          "title": "Clean concise name of the identified item (brand, model, size if visible)",
+          "category": "eBay category path (e.g. Clothing & Accessories > Men's Clothing > Coats, Jackets & Vests)",
+          "cogs": 0.00,
+          "weightClass": "Small | Medium | Large (Small: under 1lb, Medium: 1-5lbs, Large: over 5lbs)",
+          "description": "Short description of the item.",
+          "suggestedTitle": "SEO keyword-rich eBay title under 80 characters limit. Use title case.",
+          "suggestedDescription": "A professional, structured, bulleted reseller draft listing description outlining features, brand name, condition, size, and shipping care.",
+          "tags": ["array", "of", "5", "keywords", "tags"]
+        }`,
+      }
+    ];
 
-    if (imageUri.startsWith('http')) {
-      imageUrlPayload = imageUri;
-    } else {
-      // Fetch local URI and convert to base64
-      const response = await fetch(imageUri);
-      const blob = await response.blob();
-      const base64 = await blobToBase64(blob);
-      imageUrlPayload = `data:image/jpeg;base64,${base64}`;
+    for (const imageUri of imageUris) {
+      let imageUrlPayload = '';
+      if (imageUri.startsWith('http')) {
+        imageUrlPayload = imageUri;
+      } else {
+        // Fetch local URI and convert to base64
+        const response = await fetch(imageUri);
+        const blob = await response.blob();
+        const base64 = await blobToBase64(blob);
+        imageUrlPayload = `data:image/jpeg;base64,${base64}`;
+      }
+
+      contentPayload.push({
+        type: 'image_url',
+        image_url: {
+          url: imageUrlPayload,
+        },
+      });
     }
 
     const requestBody = {
@@ -64,29 +90,7 @@ export const recognizeItem = async (
         },
         {
           role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `Identify the object in this image and return a JSON object ONLY. Do not write markdown tags around the JSON.
-              The JSON object must match this schema:
-              {
-                "title": "Clean concise name of the identified item (brand, model, size if visible)",
-                "category": "eBay category path (e.g. Clothing & Accessories > Men's Clothing > Coats, Jackets & Vests)",
-                "cogs": 0.00,
-                "weightClass": "Small | Medium | Large (Small: under 1lb, Medium: 1-5lbs, Large: over 5lbs)",
-                "description": "Short description of the item.",
-                "suggestedTitle": "SEO keyword-rich eBay title under 80 characters limit. Use title case.",
-                "suggestedDescription": "A professional, structured, bulleted reseller draft listing description outlining features, brand name, condition, size, and shipping care.",
-                "tags": ["array", "of", "5", "keywords", "tags"]
-              }`,
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: imageUrlPayload,
-              },
-            },
-          ],
+          content: contentPayload,
         },
       ],
       response_format: { type: 'json_object' },
@@ -103,8 +107,17 @@ export const recognizeItem = async (
 
     if (!response.ok) {
       const errText = await response.text();
-      console.warn('OpenAI Vision error:', errText);
-      throw new Error(`OpenAI Vision failed: ${response.statusText}`);
+      let errMsg = response.statusText || 'Unknown Error';
+      try {
+        const parsedErr = JSON.parse(errText);
+        if (parsedErr.error?.message) {
+          errMsg = parsedErr.error.message;
+        }
+      } catch (e) {
+        // Not JSON response
+      }
+      console.warn('OpenAI Vision error details:', errText);
+      throw new Error(`OpenAI Vision failed: ${errMsg}`);
     }
 
     const data = await response.json();
@@ -121,8 +134,8 @@ export const recognizeItem = async (
       suggestedDescription: itemData.suggestedDescription || '',
       tags: itemData.tags || [],
     };
-  } catch (error) {
-    console.error('OpenAI Vision API error:', error);
+  } catch (error: any) {
+    console.warn('OpenAI Vision API error:', error.message || error);
     throw error;
   }
 };

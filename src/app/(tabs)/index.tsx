@@ -248,7 +248,8 @@ export default function SourcingCameraScreen() {
     }
   };
 
-  const runScanningSequence = async (primaryPhotoUri: string, isMock: boolean) => {
+  const runScanningSequence = async (photoUris: string[], isMock: boolean) => {
+    const primaryPhotoUri = photoUris[0];
     setIsScanning(true);
     setScanProgress(isLiveMode ? 'Contacting Vision AI...' : 'Initializing Scanner...');
 
@@ -274,8 +275,8 @@ export default function SourcingCameraScreen() {
             imageUrl: primaryPhotoUri,
           };
         } else {
-          // Call OpenAI GPT-4o Vision service
-          const recognized = await recognizeItem(isLiveMode ? openAiApiKey : '', primaryPhotoUri);
+          // Call OpenAI GPT-4o Vision service with all photos
+          const recognized = await recognizeItem(isLiveMode ? openAiApiKey : '', photoUris);
 
           scannedItem = {
             id: `scan-${Date.now()}`,
@@ -312,14 +313,15 @@ export default function SourcingCameraScreen() {
       Alert.alert('No Photos', 'Please capture or select at least one photo first.');
       return;
     }
-    // Scan primary photo (first in array)
-    runScanningSequence(capturedPhotos[0], false);
+    // Scan all photos
+    runScanningSequence(capturedPhotos, false);
   };
 
   const selectMockObject = (item: ScannableItem) => {
     setSelectedMock(item);
     clearCapturedPhotos();
     addCapturedPhoto(item.imageUrl);
+    runScanningSequence([item.imageUrl], true);
   };
 
   const toggleFlash = () => {
@@ -549,7 +551,7 @@ export default function SourcingCameraScreen() {
           >
             <View style={styles.triggerInnerBtn}>
               <Text style={styles.triggerText}>
-                SCAN
+                SNAP
               </Text>
             </View>
           </TouchableOpacity>
@@ -567,7 +569,7 @@ export default function SourcingCameraScreen() {
           ) : (
             <TouchableOpacity
               style={[styles.scanBtn, isScanning && styles.triggerBtnDisabled]}
-              onPress={() => runScanningSequence(selectedMock.imageUrl, true)}
+              onPress={() => runScanningSequence([selectedMock.imageUrl], true)}
               disabled={isScanning}
             >
               <Text style={styles.scanBtnText}>SIMULATE</Text>
