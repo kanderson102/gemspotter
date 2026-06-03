@@ -319,10 +319,10 @@ export default function SettingsScreen() {
                     5. <Text style={styles.helpImportant}>CRITICAL</Text>: Since the eBay developer portal registry requires a secure HTTPS callback URL, you must register the Redirect URL (both accepted and declined URLs) as:
                   </Text>
                   <View style={styles.helpCodeBlock}>
-                    <Text style={styles.helpCodeText}>https://auth.expo.fyi</Text>
+                    <Text style={styles.helpCodeText}>https://httpbin.org/anything</Text>
                   </View>
                   <Text style={styles.helpText}>
-                    After you authorize on eBay, you'll be redirected to that page, which displays your authorization code. Simply copy the code, close the browser, and paste it below!
+                    After you authorize on eBay, you'll be redirected to that page, which echoes your auth code in JSON format. Simply copy the code value next to "code", close the browser, and paste it below!
                   </Text>
                 </View>
               )}
