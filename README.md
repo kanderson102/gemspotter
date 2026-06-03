@@ -31,7 +31,7 @@ Gemspotter is an AI-powered Android app helping thrift store resellers with eBay
 To run the app locally on your computer and test it on a physical device or emulator:
 1. **Clone the Repository:**
    ```bash
-   git clone https://github.com/kanderson102/gemspotter.git
+   git clone https://github.com/your-username/gemspotter.git
    cd gemspotter
    ```
 2. **Install Dependencies:**

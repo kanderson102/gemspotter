@@ -258,7 +258,7 @@ export default function SettingsScreen() {
                 style={styles.fieldInput}
                 value={ebayRuName}
                 onChangeText={setEbayRuName}
-                placeholder="e.g. Kyle_Anderson-KyleAnde-gemspo-xyz"
+                placeholder="e.g. YourAppName-RedirectURI-xyz"
                 placeholderTextColor={COLORS.textDark}
                 autoCapitalize="none"
               />
