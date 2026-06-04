@@ -55,6 +55,21 @@ export const initSQLiteDB = async (): Promise<void> => {
       );
     `);
 
+    // Schema Migrations: add columns if they are missing in older installations
+    try {
+      await db.execAsync('ALTER TABLE inventory ADD COLUMN isMock INTEGER DEFAULT 0;');
+      console.log('SQLite: Migrated inventory table, added isMock column.');
+    } catch (e) {
+      // Column already exists, safe to ignore
+    }
+
+    try {
+      await db.execAsync('ALTER TABLE history ADD COLUMN isMock INTEGER DEFAULT 0;');
+      console.log('SQLite: Migrated history table, added isMock column.');
+    } catch (e) {
+      // Column already exists, safe to ignore
+    }
+
     console.log('Local SQLite Database initialized successfully.');
   } catch (error) {
     console.error('Failed to initialize local SQLite database:', error);
