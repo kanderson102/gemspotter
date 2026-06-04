@@ -112,12 +112,12 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onCom
           {step === 2 && (
             <View style={styles.slide}>
               <Text style={styles.sectionHeader}>AI & Media Isolation</Text>
-              <Text style={styles.sectionDesc}>Set up OpenAI and Photoroom to enable image analysis and studio background removals.</Text>
+              <Text style={styles.sectionDesc}>Configure your AI provider and Photoroom key to enable image analysis and studio background removals.</Text>
 
               {/* OpenAI Key */}
               <View style={styles.inputGroup}>
                 <View style={styles.labelRow}>
-                  <Text style={styles.inputLabel}>OPENAI API KEY</Text>
+                  <Text style={styles.inputLabel}>OPENAI API KEY (OPTIONAL)</Text>
                   <TouchableOpacity onPress={() => Linking.openURL('https://platform.openai.com/api-keys')}>
                     <Text style={styles.linkLabel}>Get Key ↗</Text>
                   </TouchableOpacity>
@@ -131,7 +131,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onCom
                   secureTextEntry
                   autoCapitalize="none"
                 />
-                <Text style={styles.fieldHelp}>Used for GPT-4o Vision image scans and SEO listing draft generation.</Text>
+                <Text style={styles.fieldHelp}>Used for OpenAI scans. You can skip this and configure Anthropic Claude in settings later.</Text>
               </View>
 
               {/* Photoroom Key */}
@@ -220,7 +220,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ visible, onCom
               <View style={styles.card}>
                 <Text style={styles.cardHeading}>Security Notice</Text>
                 <Text style={styles.cardDesc}>
-                  Your API credentials are saved directly to your phone's secure storage. They are never transmitted to any third party besides the direct API endpoints (OpenAI, eBay, and Photoroom).
+                  Your API credentials are saved directly to your phone's secure storage. They are never transmitted to any third party besides the direct API endpoints (OpenAI, Anthropic, eBay, and Photoroom).
                 </Text>
               </View>
             </View>
