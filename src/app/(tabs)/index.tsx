@@ -39,6 +39,9 @@ export default function SourcingCameraScreen() {
     setEbayClientSecret,
     setPhotoroomApiKey,
     setIsLiveMode,
+    aiProvider,
+    aiModel,
+    anthropicApiKey,
   } = useApp();
 
   const [selectedMock, setSelectedMock] = useState<ScannableItem>(MOCK_SCANNABLE_ITEMS[0]);
@@ -248,7 +251,7 @@ export default function SourcingCameraScreen() {
     }
   };
 
-  const runScanningSequence = async (photoUris: string[], isMock: boolean) => {
+  const runScanningSequence = async (photoUris: string[], isMock: boolean, mockItem?: ScannableItem) => {
     const primaryPhotoUri = photoUris[0];
     setIsScanning(true);
     setScanProgress(isLiveMode ? 'Contacting Vision AI...' : 'Initializing Scanner...');
@@ -270,13 +273,20 @@ export default function SourcingCameraScreen() {
 
         if (isMock && !isLiveMode) {
           // If we chose a mock, use mock comps directly
+          const targetMock = mockItem || selectedMock;
           scannedItem = {
-            ...selectedMock,
+            ...targetMock,
             imageUrl: primaryPhotoUri,
           };
         } else {
-          // Call OpenAI GPT-4o Vision service with all photos
-          const recognized = await recognizeItem(isLiveMode ? openAiApiKey : '', photoUris);
+          // Call active AI Vision service with all photos
+          const activeKey = aiProvider === 'openai' ? openAiApiKey : anthropicApiKey;
+          const recognized = await recognizeItem(
+            isLiveMode ? activeKey : '',
+            photoUris,
+            aiProvider,
+            aiModel
+          );
 
           scannedItem = {
             id: `scan-${Date.now()}`,
@@ -321,7 +331,7 @@ export default function SourcingCameraScreen() {
     setSelectedMock(item);
     clearCapturedPhotos();
     addCapturedPhoto(item.imageUrl);
-    runScanningSequence([item.imageUrl], true);
+    runScanningSequence([item.imageUrl], true, item);
   };
 
   const toggleFlash = () => {
@@ -580,7 +590,15 @@ export default function SourcingCameraScreen() {
         <View style={styles.infoHint}>
           <HelpCircle color={COLORS.textSecondary} size={12} />
           <Text style={styles.infoHintText}>
-            {isLiveMode ? 'Live Vision AI queries OpenAI GPT-4o.' : 'Simulated mode processes offline.'}
+            {isLiveMode
+              ? `Live Vision AI queries ${
+                  aiProvider === 'openai'
+                    ? 'OpenAI GPT-4o-mini'
+                    : aiModel.toLowerCase().includes('haiku')
+                    ? 'Claude Haiku'
+                    : 'Claude Sonnet'
+                }.`
+              : 'Simulated mode processes offline.'}
           </Text>
         </View>
       </View>
