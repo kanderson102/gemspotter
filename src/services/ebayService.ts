@@ -236,6 +236,9 @@ export const publishToEbay = async (
     price: number;
     imageUrls: string[];
     weightClass: 'Small' | 'Medium' | 'Large';
+    fulfillmentPolicyId?: string;
+    paymentPolicyId?: string;
+    returnPolicyId?: string;
   }
 ): Promise<{ success: boolean; url?: string; listingId?: string }> => {
   if (!userAccessToken) {
@@ -282,7 +285,19 @@ export const publishToEbay = async (
     });
 
     if (!invRes.ok) {
-      throw new Error(`Failed to create eBay inventory item: ${invRes.statusText}`);
+      const errText = await invRes.text();
+      let errorDetail = '';
+      try {
+        const parsed = JSON.parse(errText);
+        if (parsed.errors && Array.isArray(parsed.errors)) {
+          errorDetail = parsed.errors.map((e: any) => e.message || JSON.stringify(e)).join(', ');
+        } else {
+          errorDetail = errText;
+        }
+      } catch {
+        errorDetail = errText;
+      }
+      throw new Error(`Failed to create eBay inventory item: ${invRes.statusText} (${errorDetail})`);
     }
 
     // 2. Create Offer
@@ -292,11 +307,11 @@ export const publishToEbay = async (
       marketplaceId: 'EBAY_US',
       format: 'FIXED_PRICE',
       availableQuantity: 1,
-      categoryId: '11450', // clothing/jacket placeholder, normally looked up dynamically
+      categoryId: listingData.category.includes('>') ? '11450' : (listingData.category || '11450'), // Use category ID if it's numeric/short, fallback to clothing placeholder 11450 if it's a full breadcrumb
       listingPolicies: {
-        fulfillmentPolicyId: 'placeholder-fulfillment',
-        paymentPolicyId: 'placeholder-payment',
-        returnPolicyId: 'placeholder-return',
+        fulfillmentPolicyId: listingData.fulfillmentPolicyId || 'placeholder-fulfillment',
+        paymentPolicyId: listingData.paymentPolicyId || 'placeholder-payment',
+        returnPolicyId: listingData.returnPolicyId || 'placeholder-return',
       },
       pricingSummary: {
         price: {
@@ -318,7 +333,19 @@ export const publishToEbay = async (
     });
 
     if (!offerRes.ok) {
-      throw new Error(`Failed to create eBay Offer: ${offerRes.statusText}`);
+      const errText = await offerRes.text();
+      let errorDetail = '';
+      try {
+        const parsed = JSON.parse(errText);
+        if (parsed.errors && Array.isArray(parsed.errors)) {
+          errorDetail = parsed.errors.map((e: any) => e.message || JSON.stringify(e)).join(', ');
+        } else {
+          errorDetail = errText;
+        }
+      } catch {
+        errorDetail = errText;
+      }
+      throw new Error(`Failed to create eBay Offer: ${offerRes.statusText} (${errorDetail})`);
     }
 
     const offerData = await offerRes.json();
@@ -335,7 +362,19 @@ export const publishToEbay = async (
     });
 
     if (!publishRes.ok) {
-      throw new Error(`Failed to publish eBay Offer: ${publishRes.statusText}`);
+      const errText = await publishRes.text();
+      let errorDetail = '';
+      try {
+        const parsed = JSON.parse(errText);
+        if (parsed.errors && Array.isArray(parsed.errors)) {
+          errorDetail = parsed.errors.map((e: any) => e.message || JSON.stringify(e)).join(', ');
+        } else {
+          errorDetail = errText;
+        }
+      } catch {
+        errorDetail = errText;
+      }
+      throw new Error(`Failed to publish eBay Offer: ${publishRes.statusText} (${errorDetail})`);
     }
 
     const publishData = await publishRes.json();

@@ -16,7 +16,7 @@ import {
   Linking,
 } from 'react-native';
 import { COLORS } from '../constants/theme';
-import { Sparkles, FileText, Check, AlertCircle, Trash2, ArrowLeft, ArrowRight, Upload, Cpu, Camera } from 'lucide-react-native';
+import { Sparkles, FileText, Check, AlertCircle, Trash2, ArrowLeft, ArrowRight, Upload, Cpu, Camera, Plus } from 'lucide-react-native';
 import { ScannableItem } from '../data/mockData';
 import { useApp } from '../context/AppContext';
 import { removeBackground } from '../services/imageService';
@@ -53,6 +53,12 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
     ebayRefreshToken,
     ebayTokenExpiresAt,
     setEbayTokenExpiresAt,
+    aiProvider,
+    aiModel,
+    anthropicApiKey,
+    ebayFulfillmentPolicyId,
+    ebayPaymentPolicyId,
+    ebayReturnPolicyId,
   } = useApp();
 
   const [loading, setLoading] = useState(true);
@@ -64,6 +70,21 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
   const [tags, setTags] = useState<string[]>(item.tags);
   const [saving, setSaving] = useState(false);
   const [savingProgress, setSavingProgress] = useState('Saving Draft...');
+  const [category, setCategory] = useState(item.category);
+  const [price, setPrice] = useState('');
+  const [weightClass, setWeightClass] = useState<'Small' | 'Medium' | 'Large'>(item.weightClass);
+  const [newTagText, setNewTagText] = useState('');
+
+  const handleAddTag = () => {
+    const trimmed = newTagText.trim().toLowerCase();
+    if (!trimmed) return;
+    if (tags.includes(trimmed)) {
+      setNewTagText('');
+      return;
+    }
+    setTags([...tags, trimmed]);
+    setNewTagText('');
+  };
   
   // Gallery state variables
   const [photos, setPhotos] = useState<string[]>([]);
@@ -136,10 +157,11 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
   };
 
   const handleGenerateSeo = async () => {
-    if (!openAiApiKey || openAiApiKey.trim() === '') {
+    const activeKey = aiProvider === 'openai' ? openAiApiKey : anthropicApiKey;
+    if (!activeKey || activeKey.trim() === '') {
       Alert.alert(
-        'OpenAI Key Required',
-        'Please configure your OpenAI API Key in the Settings page first.'
+        'API Key Required',
+        `Please configure your ${aiProvider === 'openai' ? 'OpenAI' : 'Anthropic'} API Key in the Settings page first.`
       );
       return;
     }
@@ -147,11 +169,14 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
     setIsGeneratingSeo(true);
     try {
       const draft = await generateSeoDraft(
-        openAiApiKey,
+        activeKey,
         item.title,
-        item.category,
+        category,
         item.cogs,
-        item.weightClass
+        weightClass,
+        undefined,
+        aiProvider,
+        aiModel
       );
       setTitle(draft.title || title);
       setDescription(draft.description || description);
@@ -159,7 +184,7 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
       Alert.alert('Success', 'SEO optimized details generated!');
     } catch (err: any) {
       console.error(err);
-      Alert.alert('API Error', err.message || 'OpenAI SEO text generation failed.');
+      Alert.alert('API Error', err.message || 'AI SEO text generation failed.');
     } finally {
       setIsGeneratingSeo(false);
     }
@@ -174,6 +199,14 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
       setTitle(item.suggestedTitle || item.title);
       setDescription(item.suggestedDescription || '');
       setTags(item.tags || []);
+      setCategory(item.category);
+      setWeightClass(item.weightClass);
+      
+      const compsCount = item.comps ? item.comps.length : 0;
+      const avgPrice = compsCount > 0 ? item.comps.reduce((sum, comp) => sum + comp.price, 0) / compsCount : 0;
+      const suggestedPrice = avgPrice > 0 ? avgPrice : (item.cogs > 0 ? item.cogs * 1.5 : 29.99);
+      setPrice(suggestedPrice.toFixed(2));
+      
       setLoading(false);
     }
   }, [visible]);
@@ -249,23 +282,33 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
         const result = await publishToEbay(ebayClientId, activeToken, {
           title,
           description,
-          category: item.category,
-          price: item.cogs * 1.5 || 29.99,
+          category: category,
+          price: parseFloat(price) || item.cogs * 1.5 || 29.99,
           imageUrls: publicUrls,
-          weightClass: item.weightClass,
+          weightClass: weightClass,
+          fulfillmentPolicyId: ebayFulfillmentPolicyId || undefined,
+          paymentPolicyId: ebayPaymentPolicyId || undefined,
+          returnPolicyId: ebayReturnPolicyId || undefined,
         });
 
         if (result.success) {
-          // Log to local inventory with listed status
-          const newItem = {
-            ...item,
-            title,
-            imageUrl: photos[0],
-            suggestedTitle: title,
-            suggestedDescription: description,
-            tags,
-          };
-          await logToInventory(newItem);
+          if (inventoryItemId) {
+            // Update the existing item to listed
+            await generateListing(inventoryItemId, title, description, tags, photos[0], 'listed', category, weightClass);
+          } else {
+            // Log to local inventory with listed status
+            const newItemId = await logToInventory({
+              ...item,
+              title,
+              imageUrl: photos[0],
+              suggestedTitle: title,
+              suggestedDescription: description,
+              tags,
+              category,
+              weightClass,
+            });
+            await generateListing(newItemId, title, description, tags, photos[0], 'listed', category, weightClass);
+          }
 
           setSaving(false);
           onSuccess();
@@ -285,20 +328,19 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
       // Default offline / simulated listing
       let id = inventoryItemId;
       if (!id) {
-        const timestamp = Date.now();
-        await logToInventory({
+        id = await logToInventory({
           ...item,
           title,
           imageUrl: photos[0],
           suggestedTitle: title,
           suggestedDescription: description,
           tags,
+          category,
+          weightClass,
         });
-        id = `inv-${timestamp}`;
       }
 
-      const targetId = inventoryItemId || (inventory[0] ? inventory[0].id : '');
-      const success = await generateListing(targetId);
+      const success = await generateListing(id, title, description, tags, photos[0], 'listed', category, weightClass);
       
       setSaving(false);
       if (success) {
@@ -440,20 +482,87 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
                     placeholderTextColor={COLORS.textSecondary}
                   />
 
-                  <Text style={styles.inputLabel}>SUGGESTED TAGS</Text>
+                  <Text style={styles.inputLabel}>SUGGESTED TAGS (TAP TO REMOVE)</Text>
                   <View style={styles.tagsContainer}>
                     {tags.map((tag, idx) => (
-                      <View key={idx} style={styles.tagBadge}>
-                        <Text style={styles.tagText}>#{tag}</Text>
-                      </View>
+                      <TouchableOpacity 
+                        key={idx} 
+                        style={styles.tagBadge}
+                        onPress={() => setTags(tags.filter((_, i) => i !== idx))}
+                      >
+                        <Text style={styles.tagText}>#{tag} ✕</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <View style={styles.addTagRow}>
+                    <TextInput
+                      style={styles.addTagInput}
+                      value={newTagText}
+                      onChangeText={setNewTagText}
+                      placeholder="Add tag..."
+                      placeholderTextColor={COLORS.textSecondary}
+                      onSubmitEditing={handleAddTag}
+                    />
+                    <TouchableOpacity style={styles.addTagBtn} onPress={handleAddTag}>
+                      <Plus color={COLORS.accentCyan} size={14} />
+                      <Text style={styles.addTagBtnText}>Add</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={styles.inputLabel}>LISTING CATEGORY</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={category}
+                    onChangeText={setCategory}
+                    placeholder="e.g. 11450 or Clothing > Jackets"
+                    placeholderTextColor={COLORS.textSecondary}
+                  />
+
+                  <Text style={styles.inputLabel}>LISTING PRICE (USD)</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={price}
+                    onChangeText={setPrice}
+                    keyboardType="numeric"
+                    placeholder="0.00"
+                    placeholderTextColor={COLORS.textSecondary}
+                  />
+                  <Text style={styles.priceSuggestionText}>
+                    {item.comps && item.comps.length > 0
+                      ? `Suggested: $${(item.comps.reduce((sum, comp) => sum + comp.price, 0) / item.comps.length).toFixed(2)} (based on eBay sold comps)`
+                      : `Suggested: $${(item.cogs * 1.5 || 29.99).toFixed(2)} (markup estimate)`}
+                  </Text>
+
+                  <Text style={styles.inputLabel}>SHIPPING SIZE (WEIGHT CLASS)</Text>
+                  <View style={styles.weightToggleGrid}>
+                    {(['Small', 'Medium', 'Large'] as const).map((size) => (
+                      <TouchableOpacity
+                        key={size}
+                        style={[
+                          styles.weightToggleBtn,
+                          weightClass === size && styles.weightToggleBtnActive,
+                        ]}
+                        onPress={() => setWeightClass(size)}
+                      >
+                        <Text
+                          style={[
+                            styles.weightToggleText,
+                            weightClass === size && styles.weightToggleTextActive,
+                          ]}
+                        >
+                          {size}
+                        </Text>
+                      </TouchableOpacity>
                     ))}
                   </View>
                 </View>
 
-                <View style={styles.alertCard}>
-                  <AlertCircle color={COLORS.accentAmber} size={16} />
+                <View style={[styles.alertCard, { backgroundColor: 'rgba(0, 240, 255, 0.04)', borderColor: 'rgba(0, 240, 255, 0.15)' }]}>
+                  <AlertCircle color={COLORS.accentCyan} size={16} />
                   <Text style={styles.alertText}>
-                    Saving will generate the AI Listing and log this item as <Text style={{ color: COLORS.accentCyan, fontWeight: '700' }}>"Listed"</Text> in your local inventory ledger.
+                    <Text style={{ fontWeight: '700', color: COLORS.accentCyan }}>eBay Listing Guide:</Text>{'\n'}
+                    • <Text style={{ fontWeight: '600', color: COLORS.textPrimary }}>Shipping Policies:</Text> Configured on your eBay account profile. The Shipping Size selected determines estimated net profits locally.{'\n'}
+                    • <Text style={{ fontWeight: '600', color: COLORS.textPrimary }}>Sandbox Environment:</Text> In Sandbox/Simulated mode, publishing generates mock public picture URLs and maps standard placeholder policies. Arbitrary search queries return 0 sold comps because the Sandbox catalog is limited.
                   </Text>
                 </View>
                 <View style={{ height: 40 }} />
@@ -794,5 +903,72 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     fontSize: 11,
     fontWeight: '600',
+  },
+  addTagRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+    marginBottom: 12,
+  },
+  addTagInput: {
+    flex: 1,
+    backgroundColor: 'rgba(5, 7, 12, 0.5)',
+    borderWidth: 1,
+    borderColor: COLORS.borderCard,
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    color: 'white',
+    fontSize: 12,
+  },
+  addTagBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0, 240, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: COLORS.borderCard,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+  },
+  addTagBtnText: {
+    color: COLORS.accentCyan,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  priceSuggestionText: {
+    color: COLORS.textSecondary,
+    fontSize: 10,
+    marginTop: 4,
+    marginBottom: 12,
+    fontStyle: 'italic',
+  },
+  weightToggleGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 4,
+  },
+  weightToggleBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(5, 7, 12, 0.5)',
+    borderWidth: 1,
+    borderColor: COLORS.borderCard,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  weightToggleBtnActive: {
+    borderColor: COLORS.accentCyan,
+    backgroundColor: 'rgba(0, 240, 255, 0.08)',
+  },
+  weightToggleText: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  weightToggleTextActive: {
+    color: COLORS.accentCyan,
   },
 });

@@ -27,7 +27,7 @@ import {
   Upload,
 } from 'lucide-react-native';
 import { ListingSheet } from '../../components/ListingSheet';
-import { MOCK_SCANNABLE_ITEMS } from '../../data/mockData';
+import { MOCK_SCANNABLE_ITEMS, ScannableItem } from '../../data/mockData';
 import * as ImagePicker from 'expo-image-picker';
 
 const SHIPPING_COSTS = {
@@ -199,9 +199,39 @@ export default function InventoryScreen() {
   };
 
   // Find scannable item reference for listing generator
-  const getScannableRef = (item: InventoryItem) => {
-    const matched = MOCK_SCANNABLE_ITEMS.find((m) => m.title.toLowerCase().includes(item.title.toLowerCase()) || item.title.toLowerCase().includes(m.title.toLowerCase()));
-    return matched || MOCK_SCANNABLE_ITEMS[0];
+  const getScannableRef = (item: InventoryItem): ScannableItem => {
+    const matched = MOCK_SCANNABLE_ITEMS.find((m) => 
+      m.title.toLowerCase().includes(item.title.toLowerCase()) || 
+      item.title.toLowerCase().includes(m.title.toLowerCase())
+    );
+    if (matched) {
+      return {
+        ...matched,
+        title: item.title,
+        category: item.category,
+        cogs: item.cogs,
+        weightClass: item.weightClass,
+        description: item.description,
+        imageUrl: item.imageUrl || matched.imageUrl,
+        suggestedTitle: item.suggestedTitle || item.title,
+        suggestedDescription: item.suggestedDescription || '',
+        tags: item.tags || matched.tags || [],
+      };
+    }
+    
+    return {
+      id: item.id,
+      title: item.title,
+      category: item.category,
+      cogs: item.cogs,
+      weightClass: item.weightClass,
+      description: item.description || '',
+      suggestedTitle: item.suggestedTitle || item.title,
+      suggestedDescription: item.suggestedDescription || '',
+      tags: item.tags || [],
+      imageUrl: item.imageUrl || 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=500&auto=format&fit=crop&q=80',
+      comps: [],
+    };
   };
 
   return (
@@ -299,46 +329,53 @@ export default function InventoryScreen() {
         ) : (
           filteredItems.map((item) => (
             <View key={item.id} style={styles.itemCard}>
-              <Image source={{ uri: item.imageUrl }} style={styles.itemImage} />
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemTitle} numberOfLines={1}>
-                  {item.title}
-                </Text>
-                <Text style={styles.itemMeta}>
-                  COGS: ${item.cogs.toFixed(2)} • {item.weightClass} weight
-                </Text>
-                <View style={styles.badgeRow}>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      item.status === 'sourced' && styles.badgeSourced,
-                      item.status === 'listed' && styles.badgeListed,
-                      item.status === 'sold' && styles.badgeSold,
-                    ]}
-                  >
-                    <Text
+              <TouchableOpacity
+                style={styles.itemMainTouchable}
+                onPress={() => handleListingSheetOpen(item)}
+              >
+                <Image source={{ uri: item.imageUrl }} style={styles.itemImage} />
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemTitle} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                  <Text style={styles.itemMeta}>
+                    COGS: ${item.cogs.toFixed(2)} • {item.weightClass} weight
+                  </Text>
+                  <View style={styles.badgeRow}>
+                    <View
                       style={[
-                        styles.statusBadgeText,
-                        item.status === 'sourced' && { color: COLORS.accentAmber },
-                        item.status === 'listed' && { color: COLORS.accentCyan },
-                        item.status === 'sold' && { color: COLORS.accentEmerald },
+                        styles.statusBadge,
+                        item.status === 'sourced' && styles.badgeSourced,
+                        item.status === 'listed' && styles.badgeListed,
+                        item.status === 'sold' && styles.badgeSold,
                       ]}
                     >
-                      {item.status.toUpperCase()}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.statusBadgeText,
+                          item.status === 'sourced' && { color: COLORS.accentAmber },
+                          item.status === 'listed' && { color: COLORS.accentCyan },
+                          item.status === 'sold' && { color: COLORS.accentEmerald },
+                        ]}
+                      >
+                        {item.status.toUpperCase()}
+                      </Text>
+                    </View>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
 
               {/* Action columns */}
               <View style={styles.itemActions}>
-                {item.status === 'sourced' && (
+                {(item.status === 'sourced' || item.status === 'listed') && (
                   <TouchableOpacity
                     style={styles.actionBtnIcon}
                     onPress={() => handleListingSheetOpen(item)}
                   >
                     <ExternalLink color={COLORS.accentPurple} size={16} />
-                    <Text style={styles.actionBtnLabel}>AI List</Text>
+                    <Text style={styles.actionBtnLabel}>
+                      {item.status === 'sourced' ? 'AI List' : 'AI Edit'}
+                    </Text>
                   </TouchableOpacity>
                 )}
 
@@ -695,6 +732,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 12,
     marginBottom: 10,
+    alignItems: 'center',
+  },
+  itemMainTouchable: {
+    flex: 1.5,
+    flexDirection: 'row',
     alignItems: 'center',
   },
   itemImage: {

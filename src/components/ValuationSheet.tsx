@@ -64,7 +64,7 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
   // Sync title when item changes
   useEffect(() => {
     setTitle(item.suggestedTitle);
-    setCogs('0');
+    setCogs(item.cogs ? item.cogs.toString() : '0');
     setWeightClass(item.weightClass);
     setAdded(false);
     setComps(item.comps || []);
@@ -118,7 +118,9 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
   const platformFees = (avgPrice * ebayFeeRate) + (compsCount > 0 ? 0.30 : 0);
 
   const netProfit = avgPrice - currentCogs - currentShipping - platformFees;
-  const roi = currentCogs > 0 ? (netProfit / currentCogs) * 100 : 0;
+  const roi = currentCogs > 0 
+    ? (netProfit / currentCogs) * 100 
+    : (netProfit > 0 ? (netProfit / 1.00) * 100 : 0);
 
   const handleAddToInventory = () => {
     logToInventory({

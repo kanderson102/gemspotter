@@ -49,10 +49,23 @@ export default function SettingsScreen() {
     setEbayUserToken,
     setEbayRefreshToken,
     setEbayTokenExpiresAt,
+    aiProvider,
+    setAiProvider,
+    aiModel,
+    setAiModel,
+    anthropicApiKey,
+    setAnthropicApiKey,
+    ebayFulfillmentPolicyId,
+    setEbayFulfillmentPolicyId,
+    ebayPaymentPolicyId,
+    setEbayPaymentPolicyId,
+    ebayReturnPolicyId,
+    setEbayReturnPolicyId,
   } = useApp();
 
   // Password visibility flags
   const [showOpenAi, setShowOpenAi] = useState(false);
+  const [showAnthropic, setShowAnthropic] = useState(false);
   const [showEbayId, setShowEbayId] = useState(false);
   const [showEbaySec, setShowEbaySec] = useState(false);
   const [showPhotoroom, setShowPhotoroom] = useState(false);
@@ -220,30 +233,98 @@ export default function SettingsScreen() {
           </View>
 
           <View style={styles.formContainer}>
-            {/* OpenAI Section */}
+            {/* AI Provider Section */}
             <View style={styles.fieldSection}>
               <View style={styles.fieldHeader}>
                 <Sparkles color={COLORS.accentPurple} size={14} />
-                <Text style={styles.fieldSectionTitle}>OpenAI API (Vision & SEO)</Text>
+                <Text style={styles.fieldSectionTitle}>Active AI Provider & Model</Text>
               </View>
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  style={styles.fieldInput}
-                  value={openAiApiKey}
-                  onChangeText={setOpenAiApiKey}
-                  placeholder="sk-proj-..."
-                  placeholderTextColor={COLORS.textDark}
-                  secureTextEntry={!showOpenAi}
-                  autoCapitalize="none"
-                />
-                <TouchableOpacity onPress={() => setShowOpenAi(!showOpenAi)} style={styles.eyeBtn}>
-                  {showOpenAi ? <EyeOff color={COLORS.textSecondary} size={16} /> : <Eye color={COLORS.textSecondary} size={16} />}
+               <View style={styles.providerGrid}>
+                {[
+                  { label: 'GPT-4o-mini', provider: 'openai', model: 'gpt-4o-mini' },
+                  { label: 'Claude Haiku', provider: 'anthropic', model: 'claude-haiku-4-5' },
+                  { label: 'Claude Sonnet', provider: 'anthropic', model: 'claude-sonnet-4-6' },
+                ].map((item) => {
+                  const isActive = aiProvider === item.provider && aiModel === item.model;
+                  return (
+                    <TouchableOpacity
+                      key={item.label}
+                      style={[
+                        styles.providerToggleBtn,
+                        isActive && styles.providerToggleBtnActive,
+                      ]}
+                      onPress={async () => {
+                        await setAiProvider(item.provider as 'openai' | 'anthropic');
+                        await setAiModel(item.model);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.providerToggleText,
+                          isActive && styles.providerToggleTextActive,
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* OpenAI API Key Section (Only if openai selected) */}
+            {aiProvider === 'openai' && (
+              <View style={styles.fieldSection}>
+                <View style={styles.fieldHeader}>
+                  <Key color={COLORS.accentPurple} size={14} />
+                  <Text style={styles.fieldSectionTitle}>OpenAI API Key (Vision & SEO)</Text>
+                </View>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={openAiApiKey}
+                    onChangeText={setOpenAiApiKey}
+                    placeholder="sk-proj-..."
+                    placeholderTextColor={COLORS.textDark}
+                    secureTextEntry={!showOpenAi}
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity onPress={() => setShowOpenAi(!showOpenAi)} style={styles.eyeBtn}>
+                    {showOpenAi ? <EyeOff color={COLORS.textSecondary} size={16} /> : <Eye color={COLORS.textSecondary} size={16} />}
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity onPress={() => Linking.openURL('https://platform.openai.com/api-keys')}>
+                  <Text style={styles.setupLinkText}>Get OpenAI Key from Platform Dashboard ↗</Text>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity onPress={() => Linking.openURL('https://platform.openai.com/api-keys')}>
-                <Text style={styles.setupLinkText}>Get OpenAI Key from Platform Dashboard ↗</Text>
-              </TouchableOpacity>
-            </View>
+            )}
+
+            {/* Anthropic API Key Section (Only if anthropic selected) */}
+            {aiProvider === 'anthropic' && (
+              <View style={styles.fieldSection}>
+                <View style={styles.fieldHeader}>
+                  <Key color={COLORS.accentPurple} size={14} />
+                  <Text style={styles.fieldSectionTitle}>Anthropic API Key (Vision & SEO)</Text>
+                </View>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={anthropicApiKey}
+                    onChangeText={setAnthropicApiKey}
+                    placeholder="sk-ant-api03-..."
+                    placeholderTextColor={COLORS.textDark}
+                    secureTextEntry={!showAnthropic}
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity onPress={() => setShowAnthropic(!showAnthropic)} style={styles.eyeBtn}>
+                    {showAnthropic ? <EyeOff color={COLORS.textSecondary} size={16} /> : <Eye color={COLORS.textSecondary} size={16} />}
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity onPress={() => Linking.openURL('https://console.anthropic.com/settings/keys')}>
+                  <Text style={styles.setupLinkText}>Get Anthropic Key from Console ↗</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* eBay Section */}
             <View style={styles.fieldSection}>
@@ -348,24 +429,48 @@ export default function SettingsScreen() {
                 </Text>
               </TouchableOpacity>
 
-              {!ebayUserToken && (
-                <View style={styles.manualCodeContainer}>
-                  <Text style={styles.manualCodeLabel}>Or paste the Authorization Code manually:</Text>
-                  <View style={[styles.inputWrapper, { alignItems: 'stretch' }]}>
-                    <TextInput
-                      style={[styles.fieldInput, { borderTopRightRadius: 0, borderBottomRightRadius: 0 }]}
-                      value={manualAuthCode}
-                      onChangeText={setManualAuthCode}
-                      placeholder="Paste code from browser here..."
-                      placeholderTextColor={COLORS.textDark}
-                      autoCapitalize="none"
-                    />
-                    <TouchableOpacity style={styles.submitCodeBtn} onPress={handleManualAuthCode}>
-                      <Text style={styles.submitCodeBtnText}>Submit</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
+              {/* Optional Policy IDs fields */}
+              <View style={{ marginTop: 16, borderTopWidth: 1, borderTopColor: COLORS.borderCard, paddingTop: 16 }}>
+                <Text style={[styles.fieldSectionTitle, { color: COLORS.accentCyan, fontSize: 11, marginBottom: 4 }]}>
+                  Custom eBay Listing Policy IDs (Optional)
+                </Text>
+                <Text style={[styles.toggleDesc, { color: COLORS.textSecondary, marginBottom: 8 }]}>
+                  Enter the numeric policy IDs configured on your eBay sandbox/live seller profile. If left blank, Gemspotter uses placeholders.
+                </Text>
+                
+                <Text style={styles.manualCodeLabel}>Fulfillment Policy ID (Shipping):</Text>
+                <TextInput
+                  style={styles.fieldInput}
+                  value={ebayFulfillmentPolicyId}
+                  onChangeText={setEbayFulfillmentPolicyId}
+                  placeholder="e.g. 195724510015"
+                  placeholderTextColor={COLORS.textDark}
+                  autoCapitalize="none"
+                  keyboardType="numeric"
+                />
+
+                <Text style={[styles.manualCodeLabel, { marginTop: 6 }]}>Payment Policy ID:</Text>
+                <TextInput
+                  style={styles.fieldInput}
+                  value={ebayPaymentPolicyId}
+                  onChangeText={setEbayPaymentPolicyId}
+                  placeholder="e.g. 195724510016"
+                  placeholderTextColor={COLORS.textDark}
+                  autoCapitalize="none"
+                  keyboardType="numeric"
+                />
+
+                <Text style={[styles.manualCodeLabel, { marginTop: 6 }]}>Return Policy ID:</Text>
+                <TextInput
+                  style={styles.fieldInput}
+                  value={ebayReturnPolicyId}
+                  onChangeText={setEbayReturnPolicyId}
+                  placeholder="e.g. 195724510017"
+                  placeholderTextColor={COLORS.textDark}
+                  autoCapitalize="none"
+                  keyboardType="numeric"
+                />
+              </View>
             </View>
 
             {/* Photoroom Section */}
@@ -740,5 +845,33 @@ const styles = StyleSheet.create({
     color: COLORS.bgDeep,
     fontWeight: '700',
     fontSize: 11,
+  },
+  providerGrid: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  providerToggleBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(5, 7, 12, 0.4)',
+    borderWidth: 1,
+    borderColor: COLORS.borderCard,
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  providerToggleBtnActive: {
+    borderColor: COLORS.accentPurple,
+    backgroundColor: 'rgba(217, 70, 239, 0.08)',
+  },
+  providerToggleText: {
+    color: COLORS.textSecondary,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  providerToggleTextActive: {
+    color: COLORS.accentPurple,
+    fontWeight: '700',
   },
 });

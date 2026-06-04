@@ -42,9 +42,18 @@ export interface AppContextType {
   activeScan: ScannableItem | null;
   setActiveScan: (item: ScannableItem | null) => void;
   performScan: (item: ScannableItem) => Promise<boolean>;
-  logToInventory: (item: ScannableItem, isMock?: boolean) => void;
+  logToInventory: (item: ScannableItem, isMock?: boolean) => Promise<string>;
   addManualInventory: (title: string, category: string, cogs: number, weightClass: 'Small' | 'Medium' | 'Large', description: string, imageUrl?: string) => void;
-  generateListing: (itemId: string) => Promise<boolean>;
+  generateListing: (
+    itemId: string,
+    suggestedTitle?: string,
+    suggestedDescription?: string,
+    tags?: string[],
+    imageUrl?: string,
+    status?: 'sourced' | 'listed' | 'sold',
+    category?: string,
+    weightClass?: 'Small' | 'Medium' | 'Large'
+  ) => Promise<boolean>;
   markAsSold: (itemId: string, soldPrice: number, shippingCost: number) => void;
   deleteInventoryItem: (itemId: string) => void;
   resetAllData: () => void;
@@ -68,6 +77,18 @@ export interface AppContextType {
   setEbayRefreshToken: (val: string) => Promise<void>;
   ebayTokenExpiresAt: string;
   setEbayTokenExpiresAt: (val: string) => Promise<void>;
+  aiProvider: 'openai' | 'anthropic';
+  setAiProvider: (val: 'openai' | 'anthropic') => Promise<void>;
+  aiModel: string;
+  setAiModel: (val: string) => Promise<void>;
+  anthropicApiKey: string;
+  setAnthropicApiKey: (val: string) => Promise<void>;
+  ebayFulfillmentPolicyId: string;
+  setEbayFulfillmentPolicyId: (val: string) => Promise<void>;
+  ebayPaymentPolicyId: string;
+  setEbayPaymentPolicyId: (val: string) => Promise<void>;
+  ebayReturnPolicyId: string;
+  setEbayReturnPolicyId: (val: string) => Promise<void>;
   
   // Captured Images for Multi-Photo Listings
   capturedPhotos: string[];
@@ -99,6 +120,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [ebayUserToken, setEbayUserTokenLocal] = useState('');
   const [ebayRefreshToken, setEbayRefreshTokenLocal] = useState('');
   const [ebayTokenExpiresAt, setEbayTokenExpiresAtLocal] = useState('');
+  const [aiProvider, setAiProviderLocal] = useState<'openai' | 'anthropic'>('openai');
+  const [aiModel, setAiModelLocal] = useState('gpt-4o-mini');
+  const [anthropicApiKey, setAnthropicApiKeyLocal] = useState('');
+  const [ebayFulfillmentPolicyId, setEbayFulfillmentPolicyIdLocal] = useState('');
+  const [ebayPaymentPolicyId, setEbayPaymentPolicyIdLocal] = useState('');
+  const [ebayReturnPolicyId, setEbayReturnPolicyIdLocal] = useState('');
 
   // Captured Images
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
@@ -162,6 +189,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const storedUserToken = await AsyncStorage.getItem('@gemspotter_ebay_user_token');
         const storedRefreshToken = await AsyncStorage.getItem('@gemspotter_ebay_refresh_token');
         const storedTokenExpires = await AsyncStorage.getItem('@gemspotter_ebay_token_expires_at');
+        const storedAiProvider = await AsyncStorage.getItem('@gemspotter_ai_provider');
+        const storedAiModel = await AsyncStorage.getItem('@gemspotter_ai_model');
+        const storedAnthropicKey = await AsyncStorage.getItem('@gemspotter_anthropic_key');
 
         if (storedOpenAi !== null) setOpenAiApiKeyLocal(storedOpenAi);
         if (storedEbayId !== null) setEbayClientIdLocal(storedEbayId);
@@ -172,6 +202,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (storedUserToken !== null) setEbayUserTokenLocal(storedUserToken);
         if (storedRefreshToken !== null) setEbayRefreshTokenLocal(storedRefreshToken);
         if (storedTokenExpires !== null) setEbayTokenExpiresAtLocal(storedTokenExpires);
+        if (storedAiProvider !== null) setAiProviderLocal(storedAiProvider as 'openai' | 'anthropic');
+        if (storedAiModel !== null) setAiModelLocal(storedAiModel);
+        if (storedAnthropicKey !== null) setAnthropicApiKeyLocal(storedAnthropicKey);
+        
+        const storedFulfillment = await AsyncStorage.getItem('@gemspotter_ebay_fulfillment_policy_id');
+        const storedPayment = await AsyncStorage.getItem('@gemspotter_ebay_payment_policy_id');
+        const storedReturn = await AsyncStorage.getItem('@gemspotter_ebay_return_policy_id');
+        
+        if (storedFulfillment !== null) setEbayFulfillmentPolicyIdLocal(storedFulfillment);
+        if (storedPayment !== null) setEbayPaymentPolicyIdLocal(storedPayment);
+        if (storedReturn !== null) setEbayReturnPolicyIdLocal(storedReturn);
       } catch (e) {
         console.error('Failed to load state', e);
       }
@@ -216,6 +257,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setEbayTokenExpiresAtLocal(val);
     await AsyncStorage.setItem('@gemspotter_ebay_token_expires_at', val);
   };
+  const setAiProvider = async (val: 'openai' | 'anthropic') => {
+    setAiProviderLocal(val);
+    await AsyncStorage.setItem('@gemspotter_ai_provider', val);
+  };
+  const setAiModel = async (val: string) => {
+    setAiModelLocal(val);
+    await AsyncStorage.setItem('@gemspotter_ai_model', val);
+  };
+  const setAnthropicApiKey = async (val: string) => {
+    setAnthropicApiKeyLocal(val);
+    await AsyncStorage.setItem('@gemspotter_anthropic_key', val);
+  };
+  const setEbayFulfillmentPolicyId = async (val: string) => {
+    setEbayFulfillmentPolicyIdLocal(val);
+    await AsyncStorage.setItem('@gemspotter_ebay_fulfillment_policy_id', val);
+  };
+  const setEbayPaymentPolicyId = async (val: string) => {
+    setEbayPaymentPolicyIdLocal(val);
+    await AsyncStorage.setItem('@gemspotter_ebay_payment_policy_id', val);
+  };
+  const setEbayReturnPolicyId = async (val: string) => {
+    setEbayReturnPolicyIdLocal(val);
+    await AsyncStorage.setItem('@gemspotter_ebay_return_policy_id', val);
+  };
 
   // Photo handlers
   const addCapturedPhoto = (uri: string) => {
@@ -251,7 +316,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return true;
   };
 
-  const logToInventory = async (item: ScannableItem, isMock?: boolean) => {
+  const logToInventory = async (item: ScannableItem, isMock?: boolean): Promise<string> => {
     const newItem: InventoryItem = {
       id: `inv-${Date.now()}`,
       title: item.title,
@@ -259,6 +324,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       cogs: item.cogs,
       weightClass: item.weightClass,
       description: item.description,
+      suggestedTitle: item.suggestedTitle || item.title,
+      suggestedDescription: item.suggestedDescription || '',
+      tags: item.tags || [],
       imageUrl: item.imageUrl,
       status: 'sourced',
       createdAt: new Date().toISOString(),
@@ -270,6 +338,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     // Save to SQLite
     await saveSQLiteInventoryItem(newItem);
+    return newItem.id;
   };
 
   const addManualInventory = async (
@@ -300,7 +369,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await saveSQLiteInventoryItem(newItem);
   };
 
-  const generateListing = async (itemId: string): Promise<boolean> => {
+  const generateListing = async (
+    itemId: string,
+    suggestedTitle?: string,
+    suggestedDescription?: string,
+    tags?: string[],
+    imageUrl?: string,
+    status: 'sourced' | 'listed' | 'sold' = 'listed',
+    category?: string,
+    weightClass?: 'Small' | 'Medium' | 'Large'
+  ): Promise<boolean> => {
     let updatedItem: InventoryItem | null = null;
     
     const updatedInventory = inventory.map(item => {
@@ -312,10 +390,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         updatedItem = {
           ...item,
-          suggestedTitle: matchedMock?.suggestedTitle || `AI GENERATED: Professional ${item.title} Listing`,
-          suggestedDescription: matchedMock?.suggestedDescription || `This is a high-quality ${item.title}. In excellent cosmetic and working condition. Pre-owned and checked by Gemspotter AI. Ready to ship out quickly!`,
-          tags: matchedMock?.tags || [item.category.split('>')[0].trim().toLowerCase(), 'reseller', 'deal', 'quality'],
-          status: 'listed' as const,
+          suggestedTitle: suggestedTitle !== undefined ? suggestedTitle : (item.suggestedTitle || matchedMock?.suggestedTitle || `AI GENERATED: Professional ${item.title} Listing`),
+          suggestedDescription: suggestedDescription !== undefined ? suggestedDescription : (item.suggestedDescription || matchedMock?.suggestedDescription || `This is a high-quality ${item.title}. In excellent cosmetic and working condition. Pre-owned and checked by Gemspotter AI. Ready to ship out quickly!`),
+          tags: tags !== undefined ? tags : (item.tags || matchedMock?.tags || [item.category.split('>')[0].trim().toLowerCase(), 'reseller', 'deal', 'quality']),
+          imageUrl: imageUrl !== undefined ? imageUrl : item.imageUrl,
+          status: status,
+          category: category !== undefined ? category : item.category,
+          weightClass: weightClass !== undefined ? weightClass : item.weightClass,
         };
         return updatedItem;
       }
@@ -378,6 +459,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setEbayUserTokenLocal('');
     setEbayRefreshTokenLocal('');
     setEbayTokenExpiresAtLocal('');
+    setAiProviderLocal('openai');
+    setAiModelLocal('gpt-4o-mini');
+    setAnthropicApiKeyLocal('');
+    setEbayFulfillmentPolicyIdLocal('');
+    setEbayPaymentPolicyIdLocal('');
+    setEbayReturnPolicyIdLocal('');
   };
 
   return (
@@ -416,6 +503,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addCapturedPhoto,
         removeCapturedPhoto,
         clearCapturedPhotos,
+        aiProvider,
+        setAiProvider,
+        aiModel,
+        setAiModel,
+        anthropicApiKey,
+        setAnthropicApiKey,
+        ebayFulfillmentPolicyId,
+        setEbayFulfillmentPolicyId,
+        ebayPaymentPolicyId,
+        setEbayPaymentPolicyId,
+        ebayReturnPolicyId,
+        setEbayReturnPolicyId,
       }}
     >
       {children}
