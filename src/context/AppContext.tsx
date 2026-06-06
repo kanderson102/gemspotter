@@ -81,6 +81,8 @@ export interface AppContextType {
   ebayProdClientId: string;
   ebaySandboxUserToken: string;
   ebayProdUserToken: string;
+  ebaySandboxRefreshToken: string;
+  ebayProdRefreshToken: string;
   aiProvider: 'openai' | 'anthropic';
   setAiProvider: (val: 'openai' | 'anthropic') => Promise<void>;
   aiModel: string;
@@ -701,6 +703,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ebayProdClientId,
         ebaySandboxUserToken,
         ebayProdUserToken,
+        ebaySandboxRefreshToken,
+        ebayProdRefreshToken,
         capturedPhotos,
         addCapturedPhoto,
         removeCapturedPhoto,

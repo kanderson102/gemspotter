@@ -67,6 +67,9 @@ export default function SettingsScreen() {
     ebayProdClientId,
     ebaySandboxUserToken,
     ebayProdUserToken,
+    ebaySandboxRefreshToken,
+    ebayProdRefreshToken,
+    ebayRefreshToken,
   } = useApp();
 
   // Password visibility flags
@@ -356,18 +359,30 @@ export default function SettingsScreen() {
               {/* Environment Status Summary */}
               <View style={styles.envSummaryContainer}>
                 <View style={[styles.envSummaryRow, ebaySandboxMode && styles.envSummaryActiveRow]}>
-                  <View style={[styles.statusDot, { backgroundColor: (ebaySandboxUserToken && ebaySandboxClientId) ? COLORS.accentEmerald : '#475569' }]} />
+                  <View style={[styles.statusDot, { backgroundColor: (ebaySandboxUserToken && ebaySandboxClientId) ? (ebaySandboxRefreshToken ? COLORS.accentEmerald : COLORS.accentAmber) : '#475569' }]} />
                   <Text style={styles.envSummaryText}>
                     <Text style={{ fontWeight: '700', color: COLORS.textPrimary }}>Sandbox Environment:</Text>{' '}
-                    {ebaySandboxClientId ? (ebaySandboxUserToken ? 'Linked ✅' : 'Credentials Configured') : 'Not Configured'}
+                    {!ebaySandboxClientId 
+                      ? 'Not Configured' 
+                      : !ebaySandboxUserToken 
+                      ? 'Credentials Saved (Not Linked)' 
+                      : ebaySandboxRefreshToken 
+                      ? 'Linked (Auto-Refresh)' 
+                      : 'Manual Token (No Auto-Refresh) ⚠️'}
                   </Text>
                   {ebaySandboxMode && <Text style={styles.activeLabel}>ACTIVE</Text>}
                 </View>
                 <View style={[styles.envSummaryRow, !ebaySandboxMode && styles.envSummaryActiveRow]}>
-                  <View style={[styles.statusDot, { backgroundColor: (ebayProdUserToken && ebayProdClientId) ? COLORS.accentEmerald : '#475569' }]} />
+                  <View style={[styles.statusDot, { backgroundColor: (ebayProdUserToken && ebayProdClientId) ? (ebayProdRefreshToken ? COLORS.accentEmerald : COLORS.accentAmber) : '#475569' }]} />
                   <Text style={styles.envSummaryText}>
                     <Text style={{ fontWeight: '700', color: COLORS.textPrimary }}>Production Environment:</Text>{' '}
-                    {ebayProdClientId ? (ebayProdUserToken ? 'Linked ✅' : 'Credentials Configured') : 'Not Configured'}
+                    {!ebayProdClientId 
+                      ? 'Not Configured' 
+                      : !ebayProdUserToken 
+                      ? 'Credentials Saved (Not Linked)' 
+                      : ebayProdRefreshToken 
+                      ? 'Linked (Auto-Refresh)' 
+                      : 'Manual Token (No Auto-Refresh) ⚠️'}
                   </Text>
                   {!ebaySandboxMode && <Text style={styles.activeLabel}>ACTIVE</Text>}
                 </View>
@@ -506,9 +521,11 @@ export default function SettingsScreen() {
 
               {/* Link Account status & button */}
               <Text style={[styles.toggleDesc, { marginTop: 8, color: COLORS.textSecondary }]}>
-                {ebayUserToken 
-                  ? 'eBay Seller Account is successfully linked! You can publish live drafts directly.' 
-                  : 'Link your seller account to authorize the app to publish listings on your behalf.'}
+                {!ebayUserToken 
+                  ? 'No seller account linked. Link your seller account to authorize the app to publish listings on your behalf.' 
+                  : ebayRefreshToken 
+                  ? 'eBay Seller Account is fully linked with auto-refresh enabled! The app will automatically manage your session.' 
+                  : '⚠️ Manual access token is pasted directly. Auto-refresh is disabled. Manually pasted tokens expire in 2 hours. Use "Link eBay Account" below for permanent access.'}
               </Text>
               
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
@@ -516,12 +533,29 @@ export default function SettingsScreen() {
                   style={[
                     styles.testBtn,
                     { flex: 1, marginTop: 0 },
-                    ebayUserToken ? { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderColor: COLORS.accentEmerald, borderWidth: 1 } : {}
+                    ebayUserToken 
+                      ? (ebayRefreshToken 
+                        ? { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderColor: COLORS.accentEmerald, borderWidth: 1 }
+                        : { backgroundColor: 'rgba(245, 158, 11, 0.12)', borderColor: COLORS.accentAmber, borderWidth: 1 })
+                      : {}
                   ]}
                   onPress={handleLinkEbay}
                 >
-                  <Text style={[styles.testBtnText, ebayUserToken ? { color: COLORS.accentEmerald } : {}]}>
-                    {ebayUserToken ? 'Linked ✅' : 'Link eBay Account'}
+                  <Text 
+                    style={[
+                      styles.testBtnText, 
+                      ebayUserToken 
+                        ? (ebayRefreshToken 
+                          ? { color: COLORS.accentEmerald } 
+                          : { color: COLORS.accentAmber })
+                        : {}
+                    ]}
+                  >
+                    {!ebayUserToken 
+                      ? 'Link eBay Account' 
+                      : ebayRefreshToken 
+                      ? 'Linked ✅' 
+                      : 'Manual Token ⚠️'}
                   </Text>
                 </TouchableOpacity>
 
