@@ -154,7 +154,7 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
       <View style={styles.modalOverlay}>
         <Animated.View style={[styles.sheetContent, { transform: [{ translateY }] }]}>
           {/* Drag handle wrapper */}

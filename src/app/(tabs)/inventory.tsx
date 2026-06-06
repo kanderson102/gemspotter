@@ -412,7 +412,7 @@ export default function InventoryScreen() {
       </ScrollView>
 
       {/* MODAL: Manual Add */}
-      <Modal visible={addModalVisible} animationType="slide" transparent>
+      <Modal visible={addModalVisible} animationType="slide" transparent onRequestClose={() => setAddModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { height: '80%' }]}>
             <Text style={styles.modalTitle}>Manual Add to Inventory</Text>
@@ -535,7 +535,7 @@ export default function InventoryScreen() {
       </Modal>
 
       {/* MODAL: Mark as Sold */}
-      <Modal visible={soldModalVisible} animationType="slide" transparent>
+      <Modal visible={soldModalVisible} animationType="slide" transparent onRequestClose={() => setSoldModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Mark Item as Sold</Text>

@@ -14,6 +14,7 @@ import { COLORS } from '../../constants/theme';
 import { History, ArrowRight, Zap, FolderPlus, HelpCircle, Check } from 'lucide-react-native';
 import { ValuationSheet } from '../../components/ValuationSheet';
 import { ListingSheet } from '../../components/ListingSheet';
+import { getShippingCost, getEbayFeeRate } from '../../services/shippingService';
 
 export default function ScanHistoryScreen() {
   const { history, performScan, activeScan, setActiveScan, logToInventory, inventory, isLiveMode, updateHistoryItem } = useApp();
@@ -33,14 +34,16 @@ export default function ScanHistoryScreen() {
 
   const calculateProfit = (item: ScanHistoryItem) => {
     const scannable = item.scannableItem;
-    const compsCount = scannable.comps.length;
-    const avgPrice = scannable.comps.reduce((sum, comp) => sum + comp.price, 0) / compsCount;
+    const comps = scannable.comps || [];
+    const compsCount = comps.length;
+    if (compsCount === 0) return 0;
     
-    // Weight categories
-    const shipping = scannable.weightClass === 'Small' ? 6 : scannable.weightClass === 'Medium' ? 12 : 25;
-    const fees = avgPrice * 0.1325;
+    const avgPrice = comps.reduce((sum, comp) => sum + comp.price, 0) / compsCount;
+    const shipping = getShippingCost(scannable.weightClass);
+    const ebayFeeRate = getEbayFeeRate(scannable.category);
+    const platformFees = (avgPrice * ebayFeeRate) + 0.30;
     
-    return avgPrice - scannable.cogs - shipping - fees;
+    return avgPrice - scannable.cogs - shipping - platformFees;
   };
 
   const handleLogQuick = (item: ScanHistoryItem) => {
@@ -99,7 +102,7 @@ export default function ScanHistoryScreen() {
                 <View style={styles.cardStats}>
                   <Text style={styles.profitLabel}>EST. PROFIT</Text>
                   <Text style={styles.profitVal}>
-                    ${profit > 0 ? profit.toFixed(0) : '0'}
+                    ${profit > 0 ? profit.toFixed(2) : '0.00'}
                   </Text>
                   
                   {inventory.some(invItem => invItem.title.toLowerCase() === item.scannableItem.title.toLowerCase()) ? (

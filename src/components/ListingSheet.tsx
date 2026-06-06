@@ -354,7 +354,7 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <Animated.View style={[styles.sheetContent, { transform: [{ translateY }] }]}>
           {/* Drag handle wrapper */}
@@ -534,39 +534,46 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
                       : `Suggested: $${(item.cogs * 1.5 || 29.99).toFixed(2)} (markup estimate)`}
                   </Text>
 
-                  <Text style={styles.inputLabel}>SHIPPING SIZE (WEIGHT CLASS)</Text>
-                  <View style={styles.weightToggleGrid}>
-                    {(['Small', 'Medium', 'Large'] as const).map((size) => (
-                      <TouchableOpacity
-                        key={size}
-                        style={[
-                          styles.weightToggleBtn,
-                          weightClass === size && styles.weightToggleBtnActive,
-                          { paddingVertical: 8 }
-                        ]}
-                        onPress={() => setWeightClass(size)}
-                      >
-                        <Text
+                  <View style={{ marginBottom: 20 }}>
+                    <Text style={styles.inputLabel}>SHIPPING SIZE (WEIGHT CLASS)</Text>
+                    <View style={styles.weightToggleGrid}>
+                      {(['Small', 'Medium', 'Large'] as const).map((size) => (
+                        <TouchableOpacity
+                          key={size}
                           style={[
-                            styles.weightToggleText,
-                            weightClass === size && styles.weightToggleTextActive,
-                            { fontWeight: '700' }
+                            styles.weightToggleBtn,
+                            weightClass === size && styles.weightToggleBtnActive,
+                            { paddingVertical: 8 }
                           ]}
+                          onPress={() => setWeightClass(size)}
                         >
-                          {size}
-                        </Text>
-                        <Text
-                          style={{
-                            color: weightClass === size ? COLORS.accentCyan : COLORS.textSecondary,
-                            fontSize: 9,
-                            marginTop: 2,
-                            fontWeight: '500'
-                          }}
-                        >
-                          Est: ${size === 'Small' ? '6.00' : size === 'Medium' ? '12.00' : '25.00'}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                          <Text
+                            style={[
+                              styles.weightToggleText,
+                              weightClass === size && styles.weightToggleTextActive,
+                              { fontWeight: '700' }
+                            ]}
+                          >
+                            {size}
+                          </Text>
+                          <Text
+                            style={{
+                              color: weightClass === size ? COLORS.accentCyan : COLORS.textSecondary,
+                              fontSize: 9,
+                              marginTop: 2,
+                              fontWeight: '500'
+                            }}
+                          >
+                            Est: ${size === 'Small' ? '6.00' : size === 'Medium' ? '12.00' : '25.00'}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <Text style={styles.shippingExplanation}>
+                      {weightClass === 'Small' && 'Small ($6): Under 1 lb (e.g., controllers, games, jewelry)'}
+                      {weightClass === 'Medium' && 'Medium ($12): 1–5 lbs (e.g., jackets, shoes, books)'}
+                      {weightClass === 'Large' && 'Large ($25): Over 5 lbs or bulky (e.g., Dutch ovens, consoles)'}
+                    </Text>
                   </View>
                 </View>
 
@@ -987,5 +994,12 @@ const styles = StyleSheet.create({
   },
   weightToggleTextActive: {
     color: COLORS.accentCyan,
+  },
+  shippingExplanation: {
+    color: COLORS.textSecondary,
+    fontSize: 10,
+    marginTop: 8,
+    fontStyle: 'italic',
+    lineHeight: 14,
   },
 });
