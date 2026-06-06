@@ -91,6 +91,7 @@ export interface AppContextType {
   setEbayReturnPolicyId: (val: string) => Promise<void>;
   ebaySandboxMode: boolean;
   setEbaySandboxMode: (val: boolean) => Promise<void>;
+  updateHistoryItem: (historyId: string, scannableItem: ScannableItem) => Promise<void>;
   
   // Captured Images for Multi-Photo Listings
   capturedPhotos: string[];
@@ -459,6 +460,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await deleteSQLiteInventoryItem(itemId);
   };
 
+  const updateHistoryItem = async (historyId: string, scannableItem: ScannableItem) => {
+    let updatedHistoryItem: ScanHistoryItem | null = null;
+    const updatedHistory = history.map(item => {
+      if (item.id === historyId) {
+        updatedHistoryItem = {
+          ...item,
+          scannableItem,
+        };
+        return updatedHistoryItem;
+      }
+      return item;
+    });
+
+    setHistory(updatedHistory);
+
+    if (updatedHistoryItem) {
+      await saveSQLiteHistoryItem(updatedHistoryItem);
+    }
+
+    // Automatically sync updated COGS and Weight to inventory if it was logged
+    const inventoryItem = inventory.find(inv => 
+      inv.title.toLowerCase() === scannableItem.title.toLowerCase() ||
+      inv.suggestedTitle?.toLowerCase() === scannableItem.title.toLowerCase()
+    );
+    if (inventoryItem) {
+      const updatedItem = {
+        ...inventoryItem,
+        title: scannableItem.title,
+        cogs: scannableItem.cogs,
+        weightClass: scannableItem.weightClass,
+      };
+      const updatedInventory = inventory.map(inv => inv.id === inventoryItem.id ? updatedItem : inv);
+      setInventory(updatedInventory);
+      await saveSQLiteInventoryItem(updatedItem);
+    }
+  };
+
   const resetAllData = async () => {
     await AsyncStorage.clear();
     await wipeAllSQLiteData();
@@ -534,6 +572,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setEbayReturnPolicyId,
         ebaySandboxMode,
         setEbaySandboxMode,
+        updateHistoryItem,
       }}
     >
       {children}

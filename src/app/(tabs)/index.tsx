@@ -613,6 +613,9 @@ export default function SourcingCameraScreen() {
               setActiveScan(null);
             }}
             item={activeScan}
+            onSave={(updated) => {
+              setActiveScan(updated);
+            }}
             onList={() => {
               setValuationVisible(false);
               setListingVisible(true);

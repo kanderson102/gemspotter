@@ -16,7 +16,7 @@ import { ValuationSheet } from '../../components/ValuationSheet';
 import { ListingSheet } from '../../components/ListingSheet';
 
 export default function ScanHistoryScreen() {
-  const { history, performScan, activeScan, setActiveScan, logToInventory, inventory, isLiveMode } = useApp();
+  const { history, performScan, activeScan, setActiveScan, logToInventory, inventory, isLiveMode, updateHistoryItem } = useApp();
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<ScanHistoryItem | null>(null);
   
   const filteredHistory = isLiveMode ? history.filter(item => !item.isMock) : history;
@@ -133,6 +133,9 @@ export default function ScanHistoryScreen() {
               setActiveScan(null);
             }}
             item={activeScan}
+            onSave={(updated) => {
+              updateHistoryItem(selectedHistoryItem.id, updated);
+            }}
             onList={() => {
               setValuationVisible(false);
               setListingVisible(true);

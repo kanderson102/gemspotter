@@ -542,6 +542,7 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
                         style={[
                           styles.weightToggleBtn,
                           weightClass === size && styles.weightToggleBtnActive,
+                          { paddingVertical: 8 }
                         ]}
                         onPress={() => setWeightClass(size)}
                       >
@@ -549,9 +550,20 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
                           style={[
                             styles.weightToggleText,
                             weightClass === size && styles.weightToggleTextActive,
+                            { fontWeight: '700' }
                           ]}
                         >
                           {size}
+                        </Text>
+                        <Text
+                          style={{
+                            color: weightClass === size ? COLORS.accentCyan : COLORS.textSecondary,
+                            fontSize: 9,
+                            marginTop: 2,
+                            fontWeight: '500'
+                          }}
+                        >
+                          Est: ${size === 'Small' ? '6.00' : size === 'Medium' ? '12.00' : '25.00'}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -562,8 +574,12 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
                   <AlertCircle color={COLORS.accentCyan} size={16} />
                   <Text style={styles.alertText}>
                     <Text style={{ fontWeight: '700', color: COLORS.accentCyan }}>eBay Listing Guide:</Text>{'\n'}
-                    • <Text style={{ fontWeight: '600', color: COLORS.textPrimary }}>Shipping Policies:</Text> Configured on your eBay account profile. The Shipping Size selected determines estimated net profits locally.{'\n'}
-                    • <Text style={{ fontWeight: '600', color: COLORS.textPrimary }}>Sandbox Environment:</Text> In Sandbox/Simulated mode, publishing generates mock public picture URLs and maps standard placeholder policies. Arbitrary search queries return 0 sold comps because the Sandbox catalog is limited.
+                    • <Text style={{ fontWeight: '600', color: COLORS.textPrimary }}>Shipping Policies:</Text> Configured on your eBay account profile. The Shipping Size selected determines estimated net profits locally.
+                    {ebaySandboxMode && (
+                      <>
+                        {'\n'}• <Text style={{ fontWeight: '600', color: COLORS.textPrimary }}>Sandbox Environment:</Text> In Sandbox/Simulated mode, publishing generates mock public picture URLs and maps standard placeholder policies. Arbitrary search queries return 0 sold comps because the Sandbox catalog is limited.
+                      </>
+                    )}
                   </Text>
                 </View>
                 <View style={{ height: 40 }} />

@@ -25,6 +25,7 @@ interface ValuationSheetProps {
   onClose: () => void;
   item: ScannableItem;
   onList: () => void;
+  onSave?: (updatedItem: ScannableItem) => void;
 }
 
 export const ValuationSheet: React.FC<ValuationSheetProps> = ({
@@ -32,6 +33,7 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
   onClose,
   item,
   onList,
+  onSave,
 }) => {
   const { logToInventory, ebayClientId, ebayClientSecret, isLiveMode, ebaySandboxMode } = useApp();
   const [title, setTitle] = useState(item.suggestedTitle);
@@ -79,6 +81,20 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
     }
   }, [visible, item]);
 
+  const handleClose = () => {
+    if (onSave) {
+      onSave({
+        ...item,
+        title,
+        suggestedTitle: title,
+        cogs: parseFloat(cogs) || 0,
+        weightClass,
+        comps,
+      });
+    }
+    onClose();
+  };
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -97,7 +113,7 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
             duration: 200,
             useNativeDriver: true,
           }).start(() => {
-            onClose();
+            handleClose();
           });
         } else {
           Animated.spring(translateY, {
@@ -133,7 +149,7 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
     });
     setAdded(true);
     setTimeout(() => {
-      onClose();
+      handleClose();
     }, 1000);
   };
 
@@ -152,7 +168,7 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
               <Text style={styles.subtitle}>EST. VALUATION</Text>
               <Text style={styles.title}>Valuation Dashboard</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+             <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
               <Text style={styles.closeBtnText}>Close</Text>
             </TouchableOpacity>
           </View>
@@ -310,9 +326,21 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity
+             <TouchableOpacity
               style={[styles.actionBtn, styles.listBtn]}
-              onPress={onList}
+              onPress={() => {
+                if (onSave) {
+                  onSave({
+                    ...item,
+                    title,
+                    suggestedTitle: title,
+                    cogs: parseFloat(cogs) || 0,
+                    weightClass,
+                    comps,
+                  });
+                }
+                onList();
+              }}
             >
               <Text style={styles.listBtnText}>Create AI Listing</Text>
             </TouchableOpacity>
