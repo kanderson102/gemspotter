@@ -71,6 +71,7 @@ export default function SettingsScreen() {
   const [showPhotoroom, setShowPhotoroom] = useState(false);
   const [showEbayHelp, setShowEbayHelp] = useState(false);
   const [manualAuthCode, setManualAuthCode] = useState('');
+  const [showManualToken, setShowManualToken] = useState(false);
 
   const handleResetData = () => {
     Alert.alert(
@@ -428,6 +429,28 @@ export default function SettingsScreen() {
                   {ebayUserToken ? 'Seller Account Linked ✅' : 'Link eBay Seller Account'}
                 </Text>
               </TouchableOpacity>
+
+              {/* Manual Token Paste Field */}
+              <View style={{ marginTop: 12 }}>
+                <Text style={styles.manualCodeLabel}>Or paste User Access Token directly:</Text>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={ebayUserToken}
+                    onChangeText={setEbayUserToken}
+                    placeholder="v^1.1#i^1#f^0#p^3..."
+                    placeholderTextColor={COLORS.textDark}
+                    secureTextEntry={!showManualToken}
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity onPress={() => setShowManualToken(!showManualToken)} style={styles.eyeBtn}>
+                    {showManualToken ? <EyeOff color={COLORS.textSecondary} size={16} /> : <Eye color={COLORS.textSecondary} size={16} />}
+                  </TouchableOpacity>
+                </View>
+                <Text style={[styles.toggleDesc, { color: COLORS.textSecondary, marginTop: 4 }]}>
+                  If you generated a User Access Token directly from the eBay Developer Portal, you can paste it here.
+                </Text>
+              </View>
 
               {/* Optional Policy IDs fields */}
               <View style={{ marginTop: 16, borderTopWidth: 1, borderTopColor: COLORS.borderCard, paddingTop: 16 }}>
