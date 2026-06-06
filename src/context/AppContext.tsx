@@ -89,6 +89,8 @@ export interface AppContextType {
   setEbayPaymentPolicyId: (val: string) => Promise<void>;
   ebayReturnPolicyId: string;
   setEbayReturnPolicyId: (val: string) => Promise<void>;
+  ebaySandboxMode: boolean;
+  setEbaySandboxMode: (val: boolean) => Promise<void>;
   
   // Captured Images for Multi-Photo Listings
   capturedPhotos: string[];
@@ -126,6 +128,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [ebayFulfillmentPolicyId, setEbayFulfillmentPolicyIdLocal] = useState('');
   const [ebayPaymentPolicyId, setEbayPaymentPolicyIdLocal] = useState('');
   const [ebayReturnPolicyId, setEbayReturnPolicyIdLocal] = useState('');
+  const [ebaySandboxMode, setEbaySandboxModeLocal] = useState(true);
 
   // Captured Images
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
@@ -209,10 +212,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const storedFulfillment = await AsyncStorage.getItem('@gemspotter_ebay_fulfillment_policy_id');
         const storedPayment = await AsyncStorage.getItem('@gemspotter_ebay_payment_policy_id');
         const storedReturn = await AsyncStorage.getItem('@gemspotter_ebay_return_policy_id');
+        const storedSandbox = await AsyncStorage.getItem('@gemspotter_ebay_sandbox_mode');
         
         if (storedFulfillment !== null) setEbayFulfillmentPolicyIdLocal(storedFulfillment);
         if (storedPayment !== null) setEbayPaymentPolicyIdLocal(storedPayment);
         if (storedReturn !== null) setEbayReturnPolicyIdLocal(storedReturn);
+        
+        if (storedSandbox !== null) {
+          setEbaySandboxModeLocal(storedSandbox === 'true');
+        } else if (storedEbayId) {
+          setEbaySandboxModeLocal(storedEbayId.toLowerCase().includes('sbx'));
+        } else {
+          setEbaySandboxModeLocal(true);
+        }
       } catch (e) {
         console.error('Failed to load state', e);
       }
@@ -280,6 +292,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setEbayReturnPolicyId = async (val: string) => {
     setEbayReturnPolicyIdLocal(val);
     await AsyncStorage.setItem('@gemspotter_ebay_return_policy_id', val);
+  };
+  const setEbaySandboxMode = async (val: boolean) => {
+    setEbaySandboxModeLocal(val);
+    await AsyncStorage.setItem('@gemspotter_ebay_sandbox_mode', val ? 'true' : 'false');
   };
 
   // Photo handlers
@@ -465,6 +481,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setEbayFulfillmentPolicyIdLocal('');
     setEbayPaymentPolicyIdLocal('');
     setEbayReturnPolicyIdLocal('');
+    setEbaySandboxModeLocal(true);
   };
 
   return (
@@ -515,6 +532,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setEbayPaymentPolicyId,
         ebayReturnPolicyId,
         setEbayReturnPolicyId,
+        ebaySandboxMode,
+        setEbaySandboxMode,
       }}
     >
       {children}

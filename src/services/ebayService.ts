@@ -30,11 +30,12 @@ const base64Encode = (str: string): string => {
  */
 export const getEbayAppToken = async (
   clientId: string,
-  clientSecret: string
+  clientSecret: string,
+  isSandbox?: boolean
 ): Promise<string> => {
   const authHeader = base64Encode(`${clientId}:${clientSecret}`);
-  const isSandbox = clientId.toLowerCase().includes('sbx');
-  const tokenUrl = isSandbox
+  const actualIsSandbox = isSandbox !== undefined ? isSandbox : clientId.toLowerCase().includes('sbx');
+  const tokenUrl = actualIsSandbox
     ? 'https://api.sandbox.ebay.com/identity/v1/oauth2/token'
     : 'https://api.ebay.com/identity/v1/oauth2/token';
   
@@ -62,11 +63,12 @@ export const exchangeEbayCodeForToken = async (
   clientId: string,
   clientSecret: string,
   code: string,
-  ruName: string
+  ruName: string,
+  isSandbox?: boolean
 ): Promise<{ accessToken: string; refreshToken: string; expiresAt: number }> => {
   const authHeader = base64Encode(`${clientId}:${clientSecret}`);
-  const isSandbox = clientId.toLowerCase().includes('sbx');
-  const tokenUrl = isSandbox
+  const actualIsSandbox = isSandbox !== undefined ? isSandbox : clientId.toLowerCase().includes('sbx');
+  const tokenUrl = actualIsSandbox
     ? 'https://api.sandbox.ebay.com/identity/v1/oauth2/token'
     : 'https://api.ebay.com/identity/v1/oauth2/token';
   
@@ -100,11 +102,12 @@ export const exchangeEbayCodeForToken = async (
 export const refreshEbayUserToken = async (
   clientId: string,
   clientSecret: string,
-  refreshToken: string
+  refreshToken: string,
+  isSandbox?: boolean
 ): Promise<{ accessToken: string; expiresAt: number }> => {
   const authHeader = base64Encode(`${clientId}:${clientSecret}`);
-  const isSandbox = clientId.toLowerCase().includes('sbx');
-  const tokenUrl = isSandbox
+  const actualIsSandbox = isSandbox !== undefined ? isSandbox : clientId.toLowerCase().includes('sbx');
+  const tokenUrl = actualIsSandbox
     ? 'https://api.sandbox.ebay.com/identity/v1/oauth2/token'
     : 'https://api.ebay.com/identity/v1/oauth2/token';
   
@@ -139,7 +142,8 @@ export const searchSoldComps = async (
   clientId: string,
   clientSecret: string,
   query: string,
-  weightClass: 'Small' | 'Medium' | 'Large' = 'Medium'
+  weightClass: 'Small' | 'Medium' | 'Large' = 'Medium',
+  isSandbox?: boolean
 ): Promise<eBayComp[]> => {
   if (!clientId || !clientSecret) {
     // Return custom generated realistic comps based on target title
@@ -180,9 +184,9 @@ export const searchSoldComps = async (
   }
 
   try {
-    const token = await getEbayAppToken(clientId, clientSecret);
-    const isSandbox = clientId.toLowerCase().includes('sbx');
-    const searchBaseUrl = isSandbox ? 'https://api.sandbox.ebay.com' : 'https://api.ebay.com';
+    const token = await getEbayAppToken(clientId, clientSecret, isSandbox);
+    const actualIsSandbox = isSandbox !== undefined ? isSandbox : clientId.toLowerCase().includes('sbx');
+    const searchBaseUrl = actualIsSandbox ? 'https://api.sandbox.ebay.com' : 'https://api.ebay.com';
     
     // Call Browse API Search endpoint
     // For Sold items, query with filter: salesState:COMPLETED
@@ -239,7 +243,8 @@ export const publishToEbay = async (
     fulfillmentPolicyId?: string;
     paymentPolicyId?: string;
     returnPolicyId?: string;
-  }
+  },
+  isSandbox?: boolean
 ): Promise<{ success: boolean; url?: string; listingId?: string }> => {
   if (!userAccessToken) {
     // If not authenticated, simulate a successful publish after delay
@@ -253,8 +258,8 @@ export const publishToEbay = async (
 
   try {
     const sku = `GS-SKU-${Date.now()}`;
-    const isSandbox = clientId.toLowerCase().includes('sbx');
-    const baseApiUrl = isSandbox 
+    const actualIsSandbox = isSandbox !== undefined ? isSandbox : clientId.toLowerCase().includes('sbx');
+    const baseApiUrl = actualIsSandbox 
       ? 'https://api.sandbox.ebay.com/sell/inventory/v1' 
       : 'https://api.ebay.com/sell/inventory/v1';
 

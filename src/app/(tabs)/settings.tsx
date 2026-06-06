@@ -61,6 +61,8 @@ export default function SettingsScreen() {
     setEbayPaymentPolicyId,
     ebayReturnPolicyId,
     setEbayReturnPolicyId,
+    ebaySandboxMode,
+    setEbaySandboxMode,
   } = useApp();
 
   // Password visibility flags
@@ -118,8 +120,7 @@ export default function SettingsScreen() {
       return;
     }
 
-    const isSandbox = ebayClientId.toLowerCase().includes('sbx');
-    const authDomain = isSandbox ? 'auth.sandbox.ebay.com' : 'auth.ebay.com';
+    const authDomain = ebaySandboxMode ? 'auth.sandbox.ebay.com' : 'auth.ebay.com';
     const authUrl = `https://${authDomain}/oauth2/authorize?client_id=${ebayClientId}&redirect_uri=${ebayRuName}&response_type=code&scope=https://api.ebay.com/oauth/api_scope/sell.inventory`;
 
     try {
@@ -134,7 +135,8 @@ export default function SettingsScreen() {
             ebayClientId,
             ebayClientSecret,
             code,
-            ebayRuName
+            ebayRuName,
+            ebaySandboxMode
           );
           
           await setEbayUserToken(tokens.accessToken);
@@ -157,8 +159,7 @@ export default function SettingsScreen() {
       Alert.alert('Credentials Required', 'Please configure your Client ID, Client Secret, and RuName first.');
       return;
     }
-    const isSandbox = ebayClientId.toLowerCase().includes('sbx');
-    const authDomain = isSandbox ? 'auth.sandbox.ebay.com' : 'auth.ebay.com';
+    const authDomain = ebaySandboxMode ? 'auth.sandbox.ebay.com' : 'auth.ebay.com';
     const authUrl = `https://${authDomain}/oauth2/authorize?client_id=${ebayClientId}&redirect_uri=${ebayRuName}&response_type=code&scope=https://api.ebay.com/oauth/api_scope/sell.inventory`;
 
     Clipboard.setString(authUrl);
@@ -180,7 +181,8 @@ export default function SettingsScreen() {
         ebayClientId,
         ebayClientSecret,
         manualAuthCode.trim(),
-        ebayRuName
+        ebayRuName,
+        ebaySandboxMode
       );
       
       await setEbayUserToken(tokens.accessToken);
@@ -378,6 +380,23 @@ export default function SettingsScreen() {
                 <Text style={styles.setupLinkText}>Get Client ID & Secret from eBay Developer Portal ↗</Text>
               </TouchableOpacity>
 
+              {/* Sandbox Toggle */}
+              <View style={[styles.toggleRow, { marginTop: 12, borderTopWidth: 0.5, borderTopColor: COLORS.borderCard, paddingTop: 12 }]}>
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text style={styles.toggleLabel}>eBay Sandbox Environment</Text>
+                  <Text style={styles.toggleDesc}>
+                    Connect to eBay's Sandbox developer environment for mock listing tests. Turn off for live seller account publishing.
+                  </Text>
+                </View>
+                <Switch
+                  value={ebaySandboxMode}
+                  onValueChange={setEbaySandboxMode}
+                  trackColor={{ false: '#334155', true: COLORS.accentCyan }}
+                  thumbColor={ebaySandboxMode ? COLORS.bgDeep : '#64748b'}
+                  ios_backgroundColor="#334155"
+                />
+              </View>
+
               {/* RuName Input */}
               <View style={[styles.fieldHeader, { marginTop: 12 }]}>
                 <Key color={COLORS.accentCyan} size={12} />
@@ -453,6 +472,9 @@ export default function SettingsScreen() {
                   </TouchableOpacity>
                   <Text style={styles.helpText}>
                     After you authorize on eBay, you'll be redirected to your secure landing page. Tap "Copy" or "Launch App" to return to Gemspotter and link your account automatically or manually!
+                  </Text>
+                  <Text style={[styles.helpText, { marginTop: 6, fontStyle: 'italic', color: COLORS.accentPurple }]}>
+                    ⚠️ Sandbox and Production are completely separate environments on eBay. You must configure this Redirect URL in the registry of BOTH your Sandbox keyset AND your Production keyset on the Developer Portal!
                   </Text>
                 </View>
               )}

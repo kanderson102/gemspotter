@@ -59,6 +59,7 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
     ebayFulfillmentPolicyId,
     ebayPaymentPolicyId,
     ebayReturnPolicyId,
+    ebaySandboxMode,
   } = useApp();
 
   const [loading, setLoading] = useState(true);
@@ -289,7 +290,7 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
           fulfillmentPolicyId: ebayFulfillmentPolicyId || undefined,
           paymentPolicyId: ebayPaymentPolicyId || undefined,
           returnPolicyId: ebayReturnPolicyId || undefined,
-        });
+        }, ebaySandboxMode);
 
         if (result.success) {
           if (inventoryItemId) {

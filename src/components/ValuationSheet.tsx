@@ -33,7 +33,7 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
   item,
   onList,
 }) => {
-  const { logToInventory, ebayClientId, ebayClientSecret, isLiveMode } = useApp();
+  const { logToInventory, ebayClientId, ebayClientSecret, isLiveMode, ebaySandboxMode } = useApp();
   const [title, setTitle] = useState(item.suggestedTitle);
   const [cogs, setCogs] = useState('0');
   const [weightClass, setWeightClass] = useState<'Small' | 'Medium' | 'Large'>(item.weightClass);
@@ -50,7 +50,8 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
         isLiveMode ? ebayClientId : '',
         isLiveMode ? ebayClientSecret : '',
         title || item.title,
-        weightClass
+        weightClass,
+        ebaySandboxMode
       );
       setComps(results);
     } catch (err) {
