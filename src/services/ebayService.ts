@@ -49,7 +49,9 @@ export const getEbayAppToken = async (
   });
 
   if (!response.ok) {
-    throw new Error(`eBay OAuth token request failed: ${response.statusText}`);
+    const errorText = await response.text();
+    console.error('eBay App Token Error Output:', errorText);
+    throw new Error(`eBay OAuth token request failed: ${response.statusText || 'Bad Request'} (${errorText})`);
   }
 
   const data = await response.json();
