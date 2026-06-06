@@ -100,28 +100,7 @@ export default function SettingsScreen() {
     );
   };
 
-  const handleLinkEbay = async () => {
-    if (ebayUserToken) {
-      Alert.alert(
-        'Unlink eBay Account',
-        'Do you want to unlink your eBay seller account from Gemspotter?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Unlink Account',
-            style: 'destructive',
-            onPress: async () => {
-              await setEbayUserToken('');
-              await setEbayRefreshToken('');
-              await setEbayTokenExpiresAt('');
-              Alert.alert('Account Unlinked', 'Your eBay seller account has been unlinked.');
-            },
-          },
-        ]
-      );
-      return;
-    }
-
+  const startBrowserAuthFlow = async () => {
     if (!ebayClientId || !ebayClientSecret || !ebayRuName) {
       Alert.alert('Credentials Required', 'Please configure your Client ID, Client Secret, and RuName first.');
       return;
@@ -159,6 +138,59 @@ export default function SettingsScreen() {
       console.error(error);
       Alert.alert('Error', error.message || 'Failed to complete eBay authentication.');
     }
+  };
+
+  const handleLinkEbay = async () => {
+    // If fully linked with refresh token (Proper Integration)
+    if (ebayUserToken && ebayRefreshToken) {
+      Alert.alert(
+        'Unlink eBay Account',
+        'Do you want to unlink your eBay seller account from Gemspotter?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Unlink Account',
+            style: 'destructive',
+            onPress: async () => {
+              await setEbayUserToken('');
+              await setEbayRefreshToken('');
+              await setEbayTokenExpiresAt('');
+              Alert.alert('Account Unlinked', 'Your eBay seller account has been unlinked.');
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    // If manual token (no refresh token) is currently configured
+    if (ebayUserToken && !ebayRefreshToken) {
+      Alert.alert(
+        'eBay Account Integration',
+        'You have a manual token saved. Would you like to link your account properly via browser (enables auto-refresh), or clear this manual token?',
+        [
+          {
+            text: 'Link Properly (Browser)',
+            onPress: () => startBrowserAuthFlow(),
+          },
+          {
+            text: 'Clear Manual Token',
+            style: 'destructive',
+            onPress: async () => {
+              await setEbayUserToken('');
+              await setEbayRefreshToken('');
+              await setEbayTokenExpiresAt('');
+              Alert.alert('Cleared', 'Manual token has been removed.');
+            },
+          },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+      return;
+    }
+
+    // Otherwise, start browser auth directly
+    await startBrowserAuthFlow();
   };
 
   const handleCopyAuthUrl = () => {
@@ -533,10 +565,8 @@ export default function SettingsScreen() {
                   style={[
                     styles.testBtn,
                     { flex: 1, marginTop: 0 },
-                    ebayUserToken 
-                      ? (ebayRefreshToken 
-                        ? { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderColor: COLORS.accentEmerald, borderWidth: 1 }
-                        : { backgroundColor: 'rgba(245, 158, 11, 0.12)', borderColor: COLORS.accentAmber, borderWidth: 1 })
+                    (ebayUserToken && ebayRefreshToken) 
+                      ? { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderColor: COLORS.accentEmerald, borderWidth: 1 } 
                       : {}
                   ]}
                   onPress={handleLinkEbay}
@@ -544,18 +574,12 @@ export default function SettingsScreen() {
                   <Text 
                     style={[
                       styles.testBtnText, 
-                      ebayUserToken 
-                        ? (ebayRefreshToken 
-                          ? { color: COLORS.accentEmerald } 
-                          : { color: COLORS.accentAmber })
-                        : {}
+                      (ebayUserToken && ebayRefreshToken) 
+                        ? { color: COLORS.accentEmerald } 
+                        : { color: COLORS.bgDeep }
                     ]}
                   >
-                    {!ebayUserToken 
-                      ? 'Link eBay Account' 
-                      : ebayRefreshToken 
-                      ? 'Linked ✅' 
-                      : 'Manual Token ⚠️'}
+                    {(ebayUserToken && ebayRefreshToken) ? 'Linked ✅' : 'Link eBay Account'}
                   </Text>
                 </TouchableOpacity>
 
