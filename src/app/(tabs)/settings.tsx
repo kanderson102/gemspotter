@@ -152,6 +152,19 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleCopyAuthUrl = () => {
+    if (!ebayClientId || !ebayClientSecret || !ebayRuName) {
+      Alert.alert('Credentials Required', 'Please configure your Client ID, Client Secret, and RuName first.');
+      return;
+    }
+    const isSandbox = ebayClientId.toLowerCase().includes('sbx');
+    const authDomain = isSandbox ? 'auth.sandbox.ebay.com' : 'auth.ebay.com';
+    const authUrl = `https://${authDomain}/oauth2/authorize?client_id=${ebayClientId}&redirect_uri=${ebayRuName}&response_type=code&scope=https://api.ebay.com/oauth/api_scope/sell.inventory`;
+
+    Clipboard.setString(authUrl);
+    Alert.alert('Copied', 'eBay Authorization URL copied to clipboard!');
+  };
+
   const handleManualAuthCode = async () => {
     if (!manualAuthCode.trim()) {
       Alert.alert('Error', 'Please paste the authorization code first.');
@@ -378,6 +391,32 @@ export default function SettingsScreen() {
                 placeholderTextColor={COLORS.textDark}
                 autoCapitalize="none"
               />
+              
+              <View style={{ marginTop: 6, marginBottom: 4 }}>
+                <Text style={styles.manualCodeLabel}>Required Redirect URL (Accepted & Declined):</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.helpCodeBlock,
+                    {
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      width: '100%',
+                      paddingVertical: 8,
+                      paddingHorizontal: 12,
+                      marginTop: 4
+                    }
+                  ]}
+                  onPress={() => {
+                    Clipboard.setString('https://kanderson102.github.io/gemspotter/');
+                    Alert.alert('Copied', 'Redirect URL copied to clipboard!');
+                  }}
+                >
+                  <Text style={styles.helpCodeText}>https://kanderson102.github.io/gemspotter/</Text>
+                  <Text style={{ color: COLORS.accentCyan, fontSize: 9, fontWeight: '700' }}>TAP TO COPY</Text>
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity onPress={() => setShowEbayHelp(!showEbayHelp)}>
                 <Text style={styles.setupLinkText}>
                   {showEbayHelp ? 'Hide Setup Instructions' : 'How to find your RuName & configure Redirect URL? ↗'}
@@ -402,9 +441,16 @@ export default function SettingsScreen() {
                   <Text style={styles.helpText}>
                     5. <Text style={styles.helpImportant}>CRITICAL</Text>: Since the eBay developer portal registry requires a secure HTTPS callback URL, you must register the Redirect URL (both accepted and declined URLs) as:
                   </Text>
-                  <View style={styles.helpCodeBlock}>
+                  <TouchableOpacity
+                    style={[styles.helpCodeBlock, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+                    onPress={() => {
+                      Clipboard.setString('https://kanderson102.github.io/gemspotter/');
+                      Alert.alert('Copied', 'Redirect URL copied to clipboard!');
+                    }}
+                  >
                     <Text style={styles.helpCodeText}>https://kanderson102.github.io/gemspotter/</Text>
-                  </View>
+                    <Text style={{ color: COLORS.accentCyan, fontSize: 8, fontWeight: '700' }}>TAP TO COPY</Text>
+                  </TouchableOpacity>
                   <Text style={styles.helpText}>
                     After you authorize on eBay, you'll be redirected to your secure landing page. Tap "Copy" or "Launch App" to return to Gemspotter and link your account automatically or manually!
                   </Text>
@@ -418,17 +464,32 @@ export default function SettingsScreen() {
                   : 'Link your seller account to authorize the app to publish listings on your behalf.'}
               </Text>
               
-              <TouchableOpacity
-                style={[
-                  styles.testBtn,
-                  ebayUserToken ? { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderColor: COLORS.accentEmerald, borderWidth: 1 } : {}
-                ]}
-                onPress={handleLinkEbay}
-              >
-                <Text style={[styles.testBtnText, ebayUserToken ? { color: COLORS.accentEmerald } : {}]}>
-                  {ebayUserToken ? 'Seller Account Linked ✅' : 'Link eBay Seller Account'}
-                </Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                <TouchableOpacity
+                  style={[
+                    styles.testBtn,
+                    { flex: 1, marginTop: 0 },
+                    ebayUserToken ? { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderColor: COLORS.accentEmerald, borderWidth: 1 } : {}
+                  ]}
+                  onPress={handleLinkEbay}
+                >
+                  <Text style={[styles.testBtnText, ebayUserToken ? { color: COLORS.accentEmerald } : {}]}>
+                    {ebayUserToken ? 'Linked ✅' : 'Link eBay Account'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.testBtn,
+                    { flex: 1, marginTop: 0, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderColor: COLORS.borderCard, borderWidth: 1 }
+                  ]}
+                  onPress={handleCopyAuthUrl}
+                >
+                  <Text style={[styles.testBtnText, { color: COLORS.textPrimary }]}>
+                    Copy Auth Link 🔗
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
               {/* Manual Token Paste Field */}
               <View style={{ marginTop: 12 }}>
