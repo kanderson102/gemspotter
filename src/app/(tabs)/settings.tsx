@@ -596,8 +596,32 @@ export default function SettingsScreen() {
                 </TouchableOpacity>
               </View>
 
+              {/* Manual Auth Code Exchange Field */}
+              <View style={{ marginTop: 12, borderTopWidth: 0.5, borderTopColor: COLORS.borderCard, paddingTop: 12 }}>
+                <Text style={styles.manualCodeLabel}>Or paste Authorization Code to Link:</Text>
+                <View style={{ flexDirection: 'row', marginTop: 4 }}>
+                  <TextInput
+                    style={[styles.fieldInput, { borderTopRightRadius: 0, borderBottomRightRadius: 0 }]}
+                    value={manualAuthCode}
+                    onChangeText={setManualAuthCode}
+                    placeholder="Pasted auth code (starts with 'code=')"
+                    placeholderTextColor={COLORS.textDark}
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity 
+                    style={styles.submitCodeBtn}
+                    onPress={handleManualAuthCode}
+                  >
+                    <Text style={styles.submitCodeBtnText}>Link Account</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={[styles.toggleDesc, { color: COLORS.textSecondary, marginTop: 4 }]}>
+                  If you used "Copy Auth Link" and obtained the code on the web landing page, paste it here to exchange it for a permanent session.
+                </Text>
+              </View>
+
               {/* Manual Token Paste Field */}
-              <View style={{ marginTop: 12 }}>
+              <View style={{ marginTop: 12, borderTopWidth: 0.5, borderTopColor: COLORS.borderCard, paddingTop: 12 }}>
                 <Text style={styles.manualCodeLabel}>Or paste User Access Token directly:</Text>
                 <View style={styles.inputWrapper}>
                   <TextInput
