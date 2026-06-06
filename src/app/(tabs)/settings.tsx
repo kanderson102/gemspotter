@@ -63,6 +63,10 @@ export default function SettingsScreen() {
     setEbayReturnPolicyId,
     ebaySandboxMode,
     setEbaySandboxMode,
+    ebaySandboxClientId,
+    ebayProdClientId,
+    ebaySandboxUserToken,
+    ebayProdUserToken,
   } = useApp();
 
   // Password visibility flags
@@ -346,14 +350,35 @@ export default function SettingsScreen() {
             <View style={styles.fieldSection}>
               <View style={styles.fieldHeader}>
                 <ShoppingBag color={COLORS.accentCyan} size={14} />
-                <Text style={styles.fieldSectionTitle}>eBay App Credentials (Browse Comps)</Text>
+                <Text style={styles.fieldSectionTitle}>eBay {ebaySandboxMode ? 'Sandbox' : 'Production'} Credentials</Text>
               </View>
+
+              {/* Environment Status Summary */}
+              <View style={styles.envSummaryContainer}>
+                <View style={[styles.envSummaryRow, ebaySandboxMode && styles.envSummaryActiveRow]}>
+                  <View style={[styles.statusDot, { backgroundColor: (ebaySandboxUserToken && ebaySandboxClientId) ? COLORS.accentEmerald : '#475569' }]} />
+                  <Text style={styles.envSummaryText}>
+                    <Text style={{ fontWeight: '700', color: COLORS.textPrimary }}>Sandbox Environment:</Text>{' '}
+                    {ebaySandboxClientId ? (ebaySandboxUserToken ? 'Linked ✅' : 'Credentials Configured') : 'Not Configured'}
+                  </Text>
+                  {ebaySandboxMode && <Text style={styles.activeLabel}>ACTIVE</Text>}
+                </View>
+                <View style={[styles.envSummaryRow, !ebaySandboxMode && styles.envSummaryActiveRow]}>
+                  <View style={[styles.statusDot, { backgroundColor: (ebayProdUserToken && ebayProdClientId) ? COLORS.accentEmerald : '#475569' }]} />
+                  <Text style={styles.envSummaryText}>
+                    <Text style={{ fontWeight: '700', color: COLORS.textPrimary }}>Production Environment:</Text>{' '}
+                    {ebayProdClientId ? (ebayProdUserToken ? 'Linked ✅' : 'Credentials Configured') : 'Not Configured'}
+                  </Text>
+                  {!ebaySandboxMode && <Text style={styles.activeLabel}>ACTIVE</Text>}
+                </View>
+              </View>
+
               <View style={styles.inputWrapper}>
                 <TextInput
                   style={styles.fieldInput}
                   value={ebayClientId}
                   onChangeText={setEbayClientId}
-                  placeholder="eBay App ID (Client ID)"
+                  placeholder={`eBay ${ebaySandboxMode ? 'Sandbox' : 'Production'} App ID (Client ID)`}
                   placeholderTextColor={COLORS.textDark}
                   secureTextEntry={!showEbayId}
                   autoCapitalize="none"
@@ -367,7 +392,7 @@ export default function SettingsScreen() {
                   style={styles.fieldInput}
                   value={ebayClientSecret}
                   onChangeText={setEbayClientSecret}
-                  placeholder="eBay Cert ID (Client Secret)"
+                  placeholder={`eBay ${ebaySandboxMode ? 'Sandbox' : 'Production'} Cert ID (Client Secret)`}
                   placeholderTextColor={COLORS.textDark}
                   secureTextEntry={!showEbaySec}
                   autoCapitalize="none"
@@ -400,7 +425,7 @@ export default function SettingsScreen() {
               {/* RuName Input */}
               <View style={[styles.fieldHeader, { marginTop: 12 }]}>
                 <Key color={COLORS.accentCyan} size={12} />
-                <Text style={styles.fieldSectionTitle}>eBay RuName (Redirect URI Name)</Text>
+                <Text style={styles.fieldSectionTitle}>eBay {ebaySandboxMode ? 'Sandbox' : 'Production'} RuName (Redirect URI Name)</Text>
               </View>
               <TextInput
                 style={styles.fieldInput}
@@ -979,5 +1004,48 @@ const styles = StyleSheet.create({
   providerToggleTextActive: {
     color: COLORS.accentPurple,
     fontWeight: '700',
+  },
+  envSummaryContainer: {
+    backgroundColor: 'rgba(5, 7, 12, 0.4)',
+    borderWidth: 1,
+    borderColor: COLORS.borderCard,
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 6,
+    marginBottom: 6,
+    gap: 6,
+  },
+  envSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+  },
+  envSummaryActiveRow: {
+    backgroundColor: 'rgba(0, 240, 255, 0.04)',
+    borderColor: 'rgba(0, 240, 255, 0.12)',
+    borderWidth: 0.5,
+  },
+  envSummaryText: {
+    color: COLORS.textSecondary,
+    fontSize: 10.5,
+    flex: 1,
+  },
+  activeLabel: {
+    color: COLORS.accentCyan,
+    fontSize: 8.5,
+    fontWeight: '800',
+    backgroundColor: 'rgba(0, 240, 255, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
 });

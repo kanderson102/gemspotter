@@ -77,6 +77,10 @@ export interface AppContextType {
   setEbayRefreshToken: (val: string) => Promise<void>;
   ebayTokenExpiresAt: string;
   setEbayTokenExpiresAt: (val: string) => Promise<void>;
+  ebaySandboxClientId: string;
+  ebayProdClientId: string;
+  ebaySandboxUserToken: string;
+  ebayProdUserToken: string;
   aiProvider: 'openai' | 'anthropic';
   setAiProvider: (val: 'openai' | 'anthropic') => Promise<void>;
   aiModel: string;
@@ -115,14 +119,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // API State
   const [openAiApiKey, setOpenAiApiKeyLocal] = useState('');
-  const [ebayClientId, setEbayClientIdLocal] = useState('');
-  const [ebayClientSecret, setEbayClientSecretLocal] = useState('');
   const [photoroomApiKey, setPhotoroomApiKeyLocal] = useState('');
   const [isLiveMode, setIsLiveModeLocal] = useState(false);
-  const [ebayRuName, setEbayRuNameLocal] = useState('');
-  const [ebayUserToken, setEbayUserTokenLocal] = useState('');
-  const [ebayRefreshToken, setEbayRefreshTokenLocal] = useState('');
-  const [ebayTokenExpiresAt, setEbayTokenExpiresAtLocal] = useState('');
   const [aiProvider, setAiProviderLocal] = useState<'openai' | 'anthropic'>('openai');
   const [aiModel, setAiModelLocal] = useState('gpt-4o-mini');
   const [anthropicApiKey, setAnthropicApiKeyLocal] = useState('');
@@ -130,6 +128,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [ebayPaymentPolicyId, setEbayPaymentPolicyIdLocal] = useState('');
   const [ebayReturnPolicyId, setEbayReturnPolicyIdLocal] = useState('');
   const [ebaySandboxMode, setEbaySandboxModeLocal] = useState(true);
+
+  // Separated Sandbox eBay credentials
+  const [ebaySandboxClientId, setEbaySandboxClientId] = useState('');
+  const [ebaySandboxClientSecret, setEbaySandboxClientSecret] = useState('');
+  const [ebaySandboxRuName, setEbaySandboxRuName] = useState('');
+  const [ebaySandboxUserToken, setEbaySandboxUserToken] = useState('');
+  const [ebaySandboxRefreshToken, setEbaySandboxRefreshToken] = useState('');
+  const [ebaySandboxTokenExpiresAt, setEbaySandboxTokenExpiresAt] = useState('');
+
+  // Separated Production eBay credentials
+  const [ebayProdClientId, setEbayProdClientId] = useState('');
+  const [ebayProdClientSecret, setEbayProdClientSecret] = useState('');
+  const [ebayProdRuName, setEbayProdRuName] = useState('');
+  const [ebayProdUserToken, setEbayProdUserToken] = useState('');
+  const [ebayProdRefreshToken, setEbayProdRefreshToken] = useState('');
+  const [ebayProdTokenExpiresAt, setEbayProdTokenExpiresAt] = useState('');
 
   // Captured Images
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
@@ -185,47 +199,122 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         // 2. Load API credentials
         const storedOpenAi = await AsyncStorage.getItem('@gemspotter_openai_key');
-        const storedEbayId = await AsyncStorage.getItem('@gemspotter_ebay_client_id');
-        const storedEbaySec = await AsyncStorage.getItem('@gemspotter_ebay_client_secret');
         const storedPhotoroom = await AsyncStorage.getItem('@gemspotter_photoroom_key');
         const storedLive = await AsyncStorage.getItem('@gemspotter_is_live_mode');
-        const storedRuName = await AsyncStorage.getItem('@gemspotter_ebay_runame');
-        const storedUserToken = await AsyncStorage.getItem('@gemspotter_ebay_user_token');
-        const storedRefreshToken = await AsyncStorage.getItem('@gemspotter_ebay_refresh_token');
-        const storedTokenExpires = await AsyncStorage.getItem('@gemspotter_ebay_token_expires_at');
         const storedAiProvider = await AsyncStorage.getItem('@gemspotter_ai_provider');
         const storedAiModel = await AsyncStorage.getItem('@gemspotter_ai_model');
         const storedAnthropicKey = await AsyncStorage.getItem('@gemspotter_anthropic_key');
 
         if (storedOpenAi !== null) setOpenAiApiKeyLocal(storedOpenAi);
-        if (storedEbayId !== null) setEbayClientIdLocal(storedEbayId);
-        if (storedEbaySec !== null) setEbayClientSecretLocal(storedEbaySec);
         if (storedPhotoroom !== null) setPhotoroomApiKeyLocal(storedPhotoroom);
         if (storedLive !== null) setIsLiveModeLocal(storedLive === 'true');
-        if (storedRuName !== null) setEbayRuNameLocal(storedRuName);
-        if (storedUserToken !== null) setEbayUserTokenLocal(storedUserToken);
-        if (storedRefreshToken !== null) setEbayRefreshTokenLocal(storedRefreshToken);
-        if (storedTokenExpires !== null) setEbayTokenExpiresAtLocal(storedTokenExpires);
         if (storedAiProvider !== null) setAiProviderLocal(storedAiProvider as 'openai' | 'anthropic');
         if (storedAiModel !== null) setAiModelLocal(storedAiModel);
         if (storedAnthropicKey !== null) setAnthropicApiKeyLocal(storedAnthropicKey);
+
+        const storedSandbox = await AsyncStorage.getItem('@gemspotter_ebay_sandbox_mode');
+        const isSandboxActive = storedSandbox !== null ? storedSandbox === 'true' : true;
+        setEbaySandboxModeLocal(isSandboxActive);
+
+        // Load separate keys
+        const storedSandboxId = await AsyncStorage.getItem('@gemspotter_ebay_sandbox_client_id');
+        const storedSandboxSec = await AsyncStorage.getItem('@gemspotter_ebay_sandbox_client_secret');
+        const storedSandboxRu = await AsyncStorage.getItem('@gemspotter_ebay_sandbox_runame');
+        const storedSandboxUser = await AsyncStorage.getItem('@gemspotter_ebay_sandbox_user_token');
+        const storedSandboxRefresh = await AsyncStorage.getItem('@gemspotter_ebay_sandbox_refresh_token');
+        const storedSandboxExpires = await AsyncStorage.getItem('@gemspotter_ebay_sandbox_token_expires_at');
+
+        const storedProdId = await AsyncStorage.getItem('@gemspotter_ebay_prod_client_id');
+        const storedProdSec = await AsyncStorage.getItem('@gemspotter_ebay_prod_client_secret');
+        const storedProdRu = await AsyncStorage.getItem('@gemspotter_ebay_prod_runame');
+        const storedProdUser = await AsyncStorage.getItem('@gemspotter_ebay_prod_user_token');
+        const storedProdRefresh = await AsyncStorage.getItem('@gemspotter_ebay_prod_refresh_token');
+        const storedProdExpires = await AsyncStorage.getItem('@gemspotter_ebay_prod_token_expires_at');
+
+        // Migration logic for legacy single eBay keys
+        const storedEbayId = await AsyncStorage.getItem('@gemspotter_ebay_client_id');
+        const storedEbaySec = await AsyncStorage.getItem('@gemspotter_ebay_client_secret');
+        const storedRuName = await AsyncStorage.getItem('@gemspotter_ebay_runame');
+        const storedUserToken = await AsyncStorage.getItem('@gemspotter_ebay_user_token');
+        const storedRefreshToken = await AsyncStorage.getItem('@gemspotter_ebay_refresh_token');
+        const storedTokenExpires = await AsyncStorage.getItem('@gemspotter_ebay_token_expires_at');
+
+        let activeSandboxId = storedSandboxId || '';
+        let activeSandboxSec = storedSandboxSec || '';
+        let activeSandboxRu = storedSandboxRu || '';
+        let activeSandboxUser = storedSandboxUser || '';
+        let activeSandboxRefresh = storedSandboxRefresh || '';
+        let activeSandboxExpires = storedSandboxExpires || '';
+
+        let activeProdId = storedProdId || '';
+        let activeProdSec = storedProdSec || '';
+        let activeProdRu = storedProdRu || '';
+        let activeProdUser = storedProdUser || '';
+        let activeProdRefresh = storedProdRefresh || '';
+        let activeProdExpires = storedProdExpires || '';
+
+        if (storedEbayId && !storedSandboxId && !storedProdId) {
+          // Perform one-time migration based on sandbox flag
+          if (isSandboxActive) {
+            activeSandboxId = storedEbayId;
+            activeSandboxSec = storedEbaySec || '';
+            activeSandboxRu = storedRuName || '';
+            activeSandboxUser = storedUserToken || '';
+            activeSandboxRefresh = storedRefreshToken || '';
+            activeSandboxExpires = storedTokenExpires || '';
+
+            await AsyncStorage.setItem('@gemspotter_ebay_sandbox_client_id', activeSandboxId);
+            await AsyncStorage.setItem('@gemspotter_ebay_sandbox_client_secret', activeSandboxSec);
+            await AsyncStorage.setItem('@gemspotter_ebay_sandbox_runame', activeSandboxRu);
+            await AsyncStorage.setItem('@gemspotter_ebay_sandbox_user_token', activeSandboxUser);
+            await AsyncStorage.setItem('@gemspotter_ebay_sandbox_refresh_token', activeSandboxRefresh);
+            await AsyncStorage.setItem('@gemspotter_ebay_sandbox_token_expires_at', activeSandboxExpires);
+          } else {
+            activeProdId = storedEbayId;
+            activeProdSec = storedEbaySec || '';
+            activeProdRu = storedRuName || '';
+            activeProdUser = storedUserToken || '';
+            activeProdRefresh = storedRefreshToken || '';
+            activeProdExpires = storedTokenExpires || '';
+
+            await AsyncStorage.setItem('@gemspotter_ebay_prod_client_id', activeProdId);
+            await AsyncStorage.setItem('@gemspotter_ebay_prod_client_secret', activeProdSec);
+            await AsyncStorage.setItem('@gemspotter_ebay_prod_runame', activeProdRu);
+            await AsyncStorage.setItem('@gemspotter_ebay_prod_user_token', activeProdUser);
+            await AsyncStorage.setItem('@gemspotter_ebay_prod_refresh_token', activeProdRefresh);
+            await AsyncStorage.setItem('@gemspotter_ebay_prod_token_expires_at', activeProdExpires);
+          }
+
+          // Cleanup legacy keys
+          await AsyncStorage.removeItem('@gemspotter_ebay_client_id');
+          await AsyncStorage.removeItem('@gemspotter_ebay_client_secret');
+          await AsyncStorage.removeItem('@gemspotter_ebay_runame');
+          await AsyncStorage.removeItem('@gemspotter_ebay_user_token');
+          await AsyncStorage.removeItem('@gemspotter_ebay_refresh_token');
+          await AsyncStorage.removeItem('@gemspotter_ebay_token_expires_at');
+        }
+
+        setEbaySandboxClientId(activeSandboxId);
+        setEbaySandboxClientSecret(activeSandboxSec);
+        setEbaySandboxRuName(activeSandboxRu);
+        setEbaySandboxUserToken(activeSandboxUser);
+        setEbaySandboxRefreshToken(activeSandboxRefresh);
+        setEbaySandboxTokenExpiresAt(activeSandboxExpires);
+
+        setEbayProdClientId(activeProdId);
+        setEbayProdClientSecret(activeProdSec);
+        setEbayProdRuName(activeProdRu);
+        setEbayProdUserToken(activeProdUser);
+        setEbayProdRefreshToken(activeProdRefresh);
+        setEbayProdTokenExpiresAt(activeProdExpires);
         
         const storedFulfillment = await AsyncStorage.getItem('@gemspotter_ebay_fulfillment_policy_id');
         const storedPayment = await AsyncStorage.getItem('@gemspotter_ebay_payment_policy_id');
         const storedReturn = await AsyncStorage.getItem('@gemspotter_ebay_return_policy_id');
-        const storedSandbox = await AsyncStorage.getItem('@gemspotter_ebay_sandbox_mode');
         
         if (storedFulfillment !== null) setEbayFulfillmentPolicyIdLocal(storedFulfillment);
         if (storedPayment !== null) setEbayPaymentPolicyIdLocal(storedPayment);
         if (storedReturn !== null) setEbayReturnPolicyIdLocal(storedReturn);
-        
-        if (storedSandbox !== null) {
-          setEbaySandboxModeLocal(storedSandbox === 'true');
-        } else if (storedEbayId) {
-          setEbaySandboxModeLocal(storedEbayId.toLowerCase().includes('sbx'));
-        } else {
-          setEbaySandboxModeLocal(true);
-        }
       } catch (e) {
         console.error('Failed to load state', e);
       }
@@ -238,13 +327,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setOpenAiApiKeyLocal(val);
     await AsyncStorage.setItem('@gemspotter_openai_key', val);
   };
+  // Dynamic getters based on environment mode
+  const ebayClientId = ebaySandboxMode ? ebaySandboxClientId : ebayProdClientId;
+  const ebayClientSecret = ebaySandboxMode ? ebaySandboxClientSecret : ebayProdClientSecret;
+  const ebayRuName = ebaySandboxMode ? ebaySandboxRuName : ebayProdRuName;
+  const ebayUserToken = ebaySandboxMode ? ebaySandboxUserToken : ebayProdUserToken;
+  const ebayRefreshToken = ebaySandboxMode ? ebaySandboxRefreshToken : ebayProdRefreshToken;
+  const ebayTokenExpiresAt = ebaySandboxMode ? ebaySandboxTokenExpiresAt : ebayProdTokenExpiresAt;
+
+  // Setters routing to the active environment's keys
   const setEbayClientId = async (val: string) => {
-    setEbayClientIdLocal(val);
-    await AsyncStorage.setItem('@gemspotter_ebay_client_id', val);
+    if (ebaySandboxMode) {
+      setEbaySandboxClientId(val);
+      await AsyncStorage.setItem('@gemspotter_ebay_sandbox_client_id', val);
+    } else {
+      setEbayProdClientId(val);
+      await AsyncStorage.setItem('@gemspotter_ebay_prod_client_id', val);
+    }
   };
+
   const setEbayClientSecret = async (val: string) => {
-    setEbayClientSecretLocal(val);
-    await AsyncStorage.setItem('@gemspotter_ebay_client_secret', val);
+    if (ebaySandboxMode) {
+      setEbaySandboxClientSecret(val);
+      await AsyncStorage.setItem('@gemspotter_ebay_sandbox_client_secret', val);
+    } else {
+      setEbayProdClientSecret(val);
+      await AsyncStorage.setItem('@gemspotter_ebay_prod_client_secret', val);
+    }
+  };
+
+  const setEbayRuName = async (val: string) => {
+    if (ebaySandboxMode) {
+      setEbaySandboxRuName(val);
+      await AsyncStorage.setItem('@gemspotter_ebay_sandbox_runame', val);
+    } else {
+      setEbayProdRuName(val);
+      await AsyncStorage.setItem('@gemspotter_ebay_prod_runame', val);
+    }
+  };
+
+  const setEbayUserToken = async (val: string) => {
+    if (ebaySandboxMode) {
+      setEbaySandboxUserToken(val);
+      await AsyncStorage.setItem('@gemspotter_ebay_sandbox_user_token', val);
+    } else {
+      setEbayProdUserToken(val);
+      await AsyncStorage.setItem('@gemspotter_ebay_prod_user_token', val);
+    }
+  };
+
+  const setEbayRefreshToken = async (val: string) => {
+    if (ebaySandboxMode) {
+      setEbaySandboxRefreshToken(val);
+      await AsyncStorage.setItem('@gemspotter_ebay_sandbox_refresh_token', val);
+    } else {
+      setEbayProdRefreshToken(val);
+      await AsyncStorage.setItem('@gemspotter_ebay_prod_refresh_token', val);
+    }
+  };
+
+  const setEbayTokenExpiresAt = async (val: string) => {
+    if (ebaySandboxMode) {
+      setEbaySandboxTokenExpiresAt(val);
+      await AsyncStorage.setItem('@gemspotter_ebay_sandbox_token_expires_at', val);
+    } else {
+      setEbayProdTokenExpiresAt(val);
+      await AsyncStorage.setItem('@gemspotter_ebay_prod_token_expires_at', val);
+    }
   };
   const setPhotoroomApiKey = async (val: string) => {
     setPhotoroomApiKeyLocal(val);
@@ -253,22 +402,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setIsLiveMode = async (val: boolean) => {
     setIsLiveModeLocal(val);
     await AsyncStorage.setItem('@gemspotter_is_live_mode', val ? 'true' : 'false');
-  };
-  const setEbayRuName = async (val: string) => {
-    setEbayRuNameLocal(val);
-    await AsyncStorage.setItem('@gemspotter_ebay_runame', val);
-  };
-  const setEbayUserToken = async (val: string) => {
-    setEbayUserTokenLocal(val);
-    await AsyncStorage.setItem('@gemspotter_ebay_user_token', val);
-  };
-  const setEbayRefreshToken = async (val: string) => {
-    setEbayRefreshTokenLocal(val);
-    await AsyncStorage.setItem('@gemspotter_ebay_refresh_token', val);
-  };
-  const setEbayTokenExpiresAt = async (val: string) => {
-    setEbayTokenExpiresAtLocal(val);
-    await AsyncStorage.setItem('@gemspotter_ebay_token_expires_at', val);
   };
   const setAiProvider = async (val: 'openai' | 'anthropic') => {
     setAiProviderLocal(val);
@@ -504,15 +637,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setInventory([]);
     setActiveScan(null);
     setOpenAiApiKeyLocal('');
-    setEbayClientIdLocal('');
-    setEbayClientSecretLocal('');
     setPhotoroomApiKeyLocal('');
     setIsLiveModeLocal(false);
     setCapturedPhotos([]);
-    setEbayRuNameLocal('');
-    setEbayUserTokenLocal('');
-    setEbayRefreshTokenLocal('');
-    setEbayTokenExpiresAtLocal('');
+    
+    // Clear separate keys
+    setEbaySandboxClientId('');
+    setEbaySandboxClientSecret('');
+    setEbaySandboxRuName('');
+    setEbaySandboxUserToken('');
+    setEbaySandboxRefreshToken('');
+    setEbaySandboxTokenExpiresAt('');
+
+    setEbayProdClientId('');
+    setEbayProdClientSecret('');
+    setEbayProdRuName('');
+    setEbayProdUserToken('');
+    setEbayProdRefreshToken('');
+    setEbayProdTokenExpiresAt('');
+
     setAiProviderLocal('openai');
     setAiModelLocal('gpt-4o-mini');
     setAnthropicApiKeyLocal('');
@@ -554,6 +697,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setEbayRefreshToken,
         ebayTokenExpiresAt,
         setEbayTokenExpiresAt,
+        ebaySandboxClientId,
+        ebayProdClientId,
+        ebaySandboxUserToken,
+        ebayProdUserToken,
         capturedPhotos,
         addCapturedPhoto,
         removeCapturedPhoto,

@@ -259,7 +259,8 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
             const refreshed = await refreshEbayUserToken(
               ebayClientId,
               ebayClientSecret,
-              ebayRefreshToken
+              ebayRefreshToken,
+              ebaySandboxMode
             );
             await setEbayUserToken(refreshed.accessToken);
             await setEbayTokenExpiresAt(refreshed.expiresAt.toString());
