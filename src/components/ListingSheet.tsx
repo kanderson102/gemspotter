@@ -91,6 +91,7 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
   const [photos, setPhotos] = useState<string[]>([]);
 
   const translateY = useRef(new Animated.Value(0)).current;
+  const handleCancelRef = useRef<() => void>(() => {});
 
   // Reset translateY when sheet opens
   useEffect(() => {
@@ -112,13 +113,7 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
       },
       onPanResponderRelease: (evt, gestureState) => {
         if (!loading && (gestureState.dy > 120 || gestureState.vy > 0.5)) {
-          Animated.timing(translateY, {
-            toValue: 800,
-            duration: 200,
-            useNativeDriver: true,
-          }).start(() => {
-            onClose();
-          });
+          handleCancelRef.current();
         } else {
           Animated.spring(translateY, {
             toValue: 0,
@@ -233,6 +228,100 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
     setPhotos(photos.filter((_, i) => i !== index));
   };
 
+  // Auto-save confirm prompt when dismissing or cancelling
+  const handleCancel = () => {
+    const executeClose = () => {
+      Animated.timing(translateY, {
+        toValue: 800,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => {
+        onClose();
+      });
+    };
+
+    // Check if the item is not yet in the inventory ledger
+    if (!inventoryItemId) {
+      Alert.alert(
+        'Discard Sourced Item?',
+        'This scanned item has not been saved to your inventory ledger yet. Would you like to save it as a local draft first?',
+        [
+          {
+            text: 'Save Draft',
+            onPress: async () => {
+              try {
+                await logToInventory({
+                  ...item,
+                  title,
+                  imageUrl: photos[0],
+                  suggestedTitle: title,
+                  suggestedDescription: description,
+                  tags,
+                  category,
+                  weightClass,
+                });
+                executeClose();
+              } catch (err) {
+                console.error('Failed to log cancel draft:', err);
+                executeClose();
+              }
+            }
+          },
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: executeClose
+          },
+          {
+            text: 'Keep Editing',
+            style: 'cancel'
+          }
+        ]
+      );
+    } else {
+      // Already in inventory, check if title or description was edited
+      const hasChanges = title !== (item.suggestedTitle || item.title) || 
+                         description !== (item.suggestedDescription || '');
+      
+      if (hasChanges) {
+        Alert.alert(
+          'Unsaved Changes',
+          'You have unsaved changes to this listing draft. Would you like to save them to your local ledger?',
+          [
+            {
+              text: 'Save Draft',
+              onPress: async () => {
+                try {
+                  await generateListing(inventoryItemId, title, description, tags, photos[0], 'sourced', category, weightClass);
+                  executeClose();
+                } catch (err) {
+                  console.error('Failed to update cancel draft:', err);
+                  executeClose();
+                }
+              }
+            },
+            {
+              text: 'Discard Changes',
+              style: 'destructive',
+              onPress: executeClose
+            },
+            {
+              text: 'Keep Editing',
+              style: 'cancel'
+            }
+          ]
+        );
+      } else {
+        executeClose();
+      }
+    }
+  };
+
+  // Sync the latest handleCancel reference to avoid PanResponder stale closure
+  useEffect(() => {
+    handleCancelRef.current = handleCancel;
+  });
+
   const handlePublish = async () => {
     if (isLiveMode && !ebayUserToken) {
       Alert.alert(
@@ -248,28 +337,60 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
     try {
       let publicUrls = [...photos];
       
+      // Save locally first so manual edits are not lost if publishing fails!
+      let activeItemId = inventoryItemId;
+      if (!activeItemId) {
+        activeItemId = await logToInventory({
+          ...item,
+          title,
+          imageUrl: photos[0],
+          suggestedTitle: title,
+          suggestedDescription: description,
+          tags,
+          category,
+          weightClass,
+        });
+      } else {
+        await generateListing(activeItemId, title, description, tags, photos[0], 'sourced', category, weightClass);
+      }
+      
       if (isLiveMode) {
         let activeToken = ebayUserToken;
         const expiresAtNum = parseFloat(ebayTokenExpiresAt) || 0;
         
         // Refresh token if expired or close to expiring (within 2 minutes)
         if (Date.now() > expiresAtNum - 120000) {
-          setSavingProgress('Refreshing eBay seller session...');
-          try {
-            const refreshed = await refreshEbayUserToken(
-              ebayClientId,
-              ebayClientSecret,
-              ebayRefreshToken,
-              ebaySandboxMode
-            );
-            await setEbayUserToken(refreshed.accessToken);
-            await setEbayTokenExpiresAt(refreshed.expiresAt.toString());
-            activeToken = refreshed.accessToken;
-          } catch (e: any) {
-            console.error('Failed to refresh eBay token:', e);
-            Alert.alert('eBay Session Expired', 'Please link your eBay seller account in Settings again.');
-            setSaving(false);
-            return;
+          if (ebayRefreshToken) {
+            setSavingProgress('Refreshing eBay seller session...');
+            try {
+              const refreshed = await refreshEbayUserToken(
+                ebayClientId,
+                ebayClientSecret,
+                ebayRefreshToken,
+                ebaySandboxMode
+              );
+              await setEbayUserToken(refreshed.accessToken);
+              await setEbayTokenExpiresAt(refreshed.expiresAt.toString());
+              activeToken = refreshed.accessToken;
+            } catch (e: any) {
+              console.error('Failed to refresh eBay token:', e);
+              Alert.alert(
+                'eBay Session Expired', 
+                'Please link your eBay seller account in Settings again. Your manual edits have been successfully saved to your local Inventory drafts.'
+              );
+              setSaving(false);
+              return;
+            }
+          } else {
+            // No refresh token available (manually pasted token expired)
+            if (expiresAtNum > 0) {
+              Alert.alert(
+                'eBay Session Expired', 
+                'Your seller session is expired and no refresh token was found. Please link your eBay account in Settings. Your manual edits have been saved to local Inventory drafts.'
+              );
+              setSaving(false);
+              return;
+            }
           }
         }
 
@@ -281,72 +402,54 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
         });
 
         setSavingProgress('Publishing draft to eBay...');
-        const result = await publishToEbay(ebayClientId, activeToken, {
-          title,
-          description,
-          category: category,
-          price: parseFloat(price) || item.cogs * 1.5 || 29.99,
-          imageUrls: publicUrls,
-          weightClass: weightClass,
-          fulfillmentPolicyId: ebayFulfillmentPolicyId || undefined,
-          paymentPolicyId: ebayPaymentPolicyId || undefined,
-          returnPolicyId: ebayReturnPolicyId || undefined,
-        }, ebaySandboxMode);
+        try {
+          const result = await publishToEbay(ebayClientId, activeToken, {
+            title,
+            description,
+            category: category,
+            price: parseFloat(price) || item.cogs * 1.5 || 29.99,
+            imageUrls: publicUrls,
+            weightClass: weightClass,
+            fulfillmentPolicyId: ebayFulfillmentPolicyId || undefined,
+            paymentPolicyId: ebayPaymentPolicyId || undefined,
+            returnPolicyId: ebayReturnPolicyId || undefined,
+          }, ebaySandboxMode);
 
-        if (result.success) {
-          if (inventoryItemId) {
-            // Update the existing item to listed
-            await generateListing(inventoryItemId, title, description, tags, photos[0], 'listed', category, weightClass);
+          if (result.success) {
+            // Update the local item status to listed
+            await generateListing(activeItemId, title, description, tags, photos[0], 'listed', category, weightClass);
+
+            setSaving(false);
+            onSuccess();
+
+            Alert.alert(
+              'eBay Listing Created!',
+              'Your draft has been published to eBay successfully.',
+              [
+                { text: 'View Listing', onPress: () => result.url && Linking.openURL(result.url) },
+                { text: 'OK' }
+              ]
+            );
+            return;
           } else {
-            // Log to local inventory with listed status
-            const newItemId = await logToInventory({
-              ...item,
-              title,
-              imageUrl: photos[0],
-              suggestedTitle: title,
-              suggestedDescription: description,
-              tags,
-              category,
-              weightClass,
-            });
-            await generateListing(newItemId, title, description, tags, photos[0], 'listed', category, weightClass);
+            throw new Error('eBay publish response did not indicate success.');
           }
-
-          setSaving(false);
-          onSuccess();
-
+        } catch (publishErr: any) {
+          console.error('Failed to publish to eBay:', publishErr);
           Alert.alert(
-            'eBay Listing Created!',
-            'Your draft has been published to eBay successfully.',
-            [
-              { text: 'View Listing', onPress: () => result.url && Linking.openURL(result.url) },
-              { text: 'OK' }
-            ]
+            'eBay Publishing Failed',
+            `Failed to publish listing: ${publishErr.message || 'Unknown error'}. Your manual edits have been successfully saved to your local Inventory drafts.`
           );
+          setSaving(false);
           return;
         }
-      }
-
-      // Default offline / simulated listing
-      let id = inventoryItemId;
-      if (!id) {
-        id = await logToInventory({
-          ...item,
-          title,
-          imageUrl: photos[0],
-          suggestedTitle: title,
-          suggestedDescription: description,
-          tags,
-          category,
-          weightClass,
-        });
-      }
-
-      const success = await generateListing(id, title, description, tags, photos[0], 'listed', category, weightClass);
-      
-      setSaving(false);
-      if (success) {
-        onSuccess();
+      } else {
+        // Default simulated offline listing
+        const success = await generateListing(activeItemId, title, description, tags, photos[0], 'listed', category, weightClass);
+        setSaving(false);
+        if (success) {
+          onSuccess();
+        }
       }
     } catch (error: any) {
       setSaving(false);
@@ -355,7 +458,7 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleCancel}>
       <View style={styles.modalOverlay}>
         <Animated.View style={[styles.sheetContent, { transform: [{ translateY }] }]}>
           {/* Drag handle wrapper */}
@@ -370,7 +473,7 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
               <Text style={styles.title}>AI Listing Assistant</Text>
             </View>
             {!loading && (
-              <TouchableOpacity onPress={onClose} style={styles.closeBtn} disabled={saving}>
+              <TouchableOpacity onPress={handleCancel} style={styles.closeBtn} disabled={saving}>
                 <Text style={styles.closeBtnText}>Cancel</Text>
               </TouchableOpacity>
             )}
