@@ -662,8 +662,16 @@ export default function SettingsScreen() {
                   <View style={[styles.helpContainer, { marginBottom: 12, gap: 6 }]}>
                     <Text style={styles.helpTitle}>How to find eBay Business Policy IDs:</Text>
                     
-                    <Text style={styles.helpText}>
-                      1. Log in to your eBay account on the web and visit:
+                    <Text style={[styles.helpText, { color: COLORS.accentRose, fontWeight: '700' }]}>
+                      ⚠️ CRITICAL REQUIREMENT:
+                    </Text>
+                    <Text style={[styles.helpText, { fontSize: 11, paddingLeft: 10, color: COLORS.textPrimary }]}>
+                      Your eBay account **must be registered as a Seller account** (i.e. you have completed payout bank account verification on eBay) and you must be logged in. 
+                      If your account is only a Buyer account, eBay's web portal will crash and display the error **"Something went wrong on our end"** on all browsers (Chrome, Brave, etc.) since it has no selling profile records.
+                    </Text>
+
+                    <Text style={[styles.helpText, { marginTop: 6 }]}>
+                      1. Log in to your eBay Seller account on the web and visit:
                     </Text>
                     <TouchableOpacity onPress={() => Linking.openURL(ebaySandboxMode ? 'https://www.bizpolicy.sandbox.ebay.com/businesspolicy/manage' : 'https://www.bizpolicy.ebay.com/businesspolicy/manage')}>
                       <Text style={[styles.helpText, { color: COLORS.accentCyan, textDecorationLine: 'underline', paddingLeft: 10 }]}>
@@ -672,7 +680,7 @@ export default function SettingsScreen() {
                     </TouchableOpacity>
 
                     <Text style={styles.helpText}>
-                      2. If the link above fails or you haven't enabled Business Policies yet, use the direct opt-in link:
+                      2. If you are a registered seller but the link above still fails, use the direct opt-in link to enable policies:
                     </Text>
                     <TouchableOpacity onPress={() => Linking.openURL(ebaySandboxMode ? 'https://www.bizpolicy.sandbox.ebay.com/businesspolicy/policyoptin' : 'https://www.bizpolicy.ebay.com/businesspolicy/policyoptin')}>
                       <Text style={[styles.helpText, { color: COLORS.accentCyan, textDecorationLine: 'underline', paddingLeft: 10 }]}>
@@ -681,16 +689,13 @@ export default function SettingsScreen() {
                     </TouchableOpacity>
 
                     <Text style={[styles.helpText, { color: COLORS.accentAmber, marginTop: 4, fontWeight: '700' }]}>
-                      ⚠️ Browser Troubleshooting (Brave / Adblockers):
+                      💡 Browser Troubleshooting Tips:
                     </Text>
                     <Text style={[styles.helpText, { paddingLeft: 10, fontSize: 11 }]}>
-                      • <Text style={{ fontWeight: '700' }}>Brave Shields / Adblockers:</Text> If using Brave Browser, you MUST turn off "Brave Shields" for eBay. Brave blocks the session/cookie scripts eBay requires to load this dashboard, causing eBay to crash with "Something went wrong on our end".
+                      • <Text style={{ fontWeight: '700' }}>Brave Shields / Adblockers:</Text> Brave browser's shields can block the security/cookie scripts eBay requires to load this dashboard. If using Brave, disable "Brave Shields" for eBay.
                     </Text>
                     <Text style={[styles.helpText, { paddingLeft: 10, fontSize: 11 }]}>
-                      • <Text style={{ fontWeight: '700' }}>Private Tabs:</Text> If the page still doesn't load, try opening it in an Incognito/Private window, or clear your browser cookies and cache.
-                    </Text>
-                    <Text style={[styles.helpText, { paddingLeft: 10, fontSize: 11 }]}>
-                      • <Text style={{ fontWeight: '700' }}>Wrong Account:</Text> Ensure you are logged into your correct active seller account in the browser before visiting the links.
+                      • <Text style={{ fontWeight: '700' }}>Private Tabs:</Text> If the page still fails to load, try opening it in an Incognito/Private window to prevent cookie/session conflicts.
                     </Text>
 
                     <Text style={[styles.helpText, { marginTop: 6 }]}>
