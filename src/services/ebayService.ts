@@ -230,6 +230,66 @@ export const searchSoldComps = async (
 };
 
 /**
+ * Programmatically retrieves the seller's active fulfillment, payment, and return policies.
+ * Returns the first policy ID found for each type, prioritizing default ones if marked.
+ */
+export const fetchEbayPolicies = async (
+  userAccessToken: string,
+  isSandbox?: boolean
+): Promise<{
+  fulfillmentPolicyId?: string;
+  paymentPolicyId?: string;
+  returnPolicyId?: string;
+}> => {
+  const actualIsSandbox = isSandbox !== undefined ? isSandbox : false;
+  const baseUrl = actualIsSandbox
+    ? 'https://api.sandbox.ebay.com/sell/account/v1'
+    : 'https://api.ebay.com/sell/account/v1';
+
+  const fetchPolicy = async (path: string, key: string, idKey: string) => {
+    try {
+      const response = await fetch(`${baseUrl}/${path}?marketplace_id=EBAY_US`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${userAccessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        console.warn(`eBay API fetch ${path} failed:`, errText);
+        return undefined;
+      }
+
+      const data = await response.json();
+      const policies = data[key] || [];
+      if (policies.length === 0) return undefined;
+
+      // Prioritize the default policy if specified
+      const defaultPol = policies.find((p: any) => p.default === true);
+      const chosen = defaultPol || policies[0];
+      return chosen[idKey];
+    } catch (error) {
+      console.warn(`Error fetching ${path}:`, error);
+      return undefined;
+    }
+  };
+
+  const [fulfillmentPolicyId, paymentPolicyId, returnPolicyId] = await Promise.all([
+    fetchPolicy('fulfillment_policy', 'fulfillmentPolicies', 'fulfillmentPolicyId'),
+    fetchPolicy('payment_policy', 'paymentPolicies', 'paymentPolicyId'),
+    fetchPolicy('return_policy', 'returnPolicies', 'returnPolicyId'),
+  ]);
+
+  return {
+    fulfillmentPolicyId,
+    paymentPolicyId,
+    returnPolicyId,
+  };
+};
+
+/**
  * Publishes a completed reseller listing draft to the user's eBay seller account
  */
 export const publishToEbay = async (
@@ -264,6 +324,36 @@ export const publishToEbay = async (
     const baseApiUrl = actualIsSandbox 
       ? 'https://api.sandbox.ebay.com/sell/inventory/v1' 
       : 'https://api.ebay.com/sell/inventory/v1';
+
+    // Resolve policies automatically if they aren't provided
+    let fulfillmentId = listingData.fulfillmentPolicyId;
+    let paymentId = listingData.paymentPolicyId;
+    let returnId = listingData.returnPolicyId;
+
+    if (!fulfillmentId || !paymentId || !returnId || 
+        fulfillmentId === 'placeholder-fulfillment' || 
+        paymentId === 'placeholder-payment' || 
+        returnId === 'placeholder-return') {
+      try {
+        const autoPolicies = await fetchEbayPolicies(userAccessToken, actualIsSandbox);
+        if (autoPolicies.fulfillmentPolicyId) fulfillmentId = autoPolicies.fulfillmentPolicyId;
+        if (autoPolicies.paymentPolicyId) paymentId = autoPolicies.paymentPolicyId;
+        if (autoPolicies.returnPolicyId) returnId = autoPolicies.returnPolicyId;
+      } catch (e) {
+        console.error('Failed to auto-fetch policies:', e);
+      }
+    }
+
+    // If still missing, throw a clean, helpful error
+    if (!fulfillmentId || fulfillmentId === 'placeholder-fulfillment' ||
+        !paymentId || paymentId === 'placeholder-payment' ||
+        !returnId || returnId === 'placeholder-return') {
+      throw new Error(
+        'eBay Business Policies (Shipping, Payment, Return) are required to publish. ' +
+        'We tried to automatically fetch them from your seller account, but none were found. ' +
+        'Please verify you have completed eBay Seller Registration and set up at least one shipping, payment, and return policy in your account.'
+      );
+    }
 
     // 1. Create inventory item
     const inventoryItemUrl = `${baseApiUrl}/inventory_item/${sku}`;
@@ -316,9 +406,9 @@ export const publishToEbay = async (
       availableQuantity: 1,
       categoryId: listingData.category.includes('>') ? '11450' : (listingData.category || '11450'), // Use category ID if it's numeric/short, fallback to clothing placeholder 11450 if it's a full breadcrumb
       listingPolicies: {
-        fulfillmentPolicyId: listingData.fulfillmentPolicyId || 'placeholder-fulfillment',
-        paymentPolicyId: listingData.paymentPolicyId || 'placeholder-payment',
-        returnPolicyId: listingData.returnPolicyId || 'placeholder-return',
+        fulfillmentPolicyId: fulfillmentId,
+        paymentPolicyId: paymentId,
+        returnPolicyId: returnId,
       },
       pricingSummary: {
         price: {

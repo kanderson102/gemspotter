@@ -108,7 +108,7 @@ export default function SettingsScreen() {
     }
 
     const authDomain = ebaySandboxMode ? 'auth.sandbox.ebay.com' : 'auth.ebay.com';
-    const authUrl = `https://${authDomain}/oauth2/authorize?client_id=${ebayClientId}&redirect_uri=${ebayRuName}&response_type=code&scope=https://api.ebay.com/oauth/api_scope/sell.inventory`;
+    const authUrl = `https://${authDomain}/oauth2/authorize?client_id=${ebayClientId}&redirect_uri=${ebayRuName}&response_type=code&scope=https://api.ebay.com/oauth/api_scope/sell.inventory%20https://api.ebay.com/oauth/api_scope/sell.account.readonly`;
 
     try {
       const result = await WebBrowser.openAuthSessionAsync(authUrl, 'https://kanderson102.github.io/gemspotter/');
@@ -200,7 +200,7 @@ export default function SettingsScreen() {
       return;
     }
     const authDomain = ebaySandboxMode ? 'auth.sandbox.ebay.com' : 'auth.ebay.com';
-    const authUrl = `https://${authDomain}/oauth2/authorize?client_id=${ebayClientId}&redirect_uri=${ebayRuName}&response_type=code&scope=https://api.ebay.com/oauth/api_scope/sell.inventory`;
+    const authUrl = `https://${authDomain}/oauth2/authorize?client_id=${ebayClientId}&redirect_uri=${ebayRuName}&response_type=code&scope=https://api.ebay.com/oauth/api_scope/sell.inventory%20https://api.ebay.com/oauth/api_scope/sell.account.readonly`;
 
     Clipboard.setString(authUrl);
     Alert.alert('Copied', 'eBay Authorization URL copied to clipboard!');
