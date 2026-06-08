@@ -8,6 +8,7 @@ import {
   deleteSQLiteInventoryItem,
   loadAllHistory,
   saveSQLiteHistoryItem,
+  deleteSQLiteHistoryItem,
   wipeAllSQLiteData
 } from '../services/sqliteService';
 
@@ -98,6 +99,7 @@ export interface AppContextType {
   ebaySandboxMode: boolean;
   setEbaySandboxMode: (val: boolean) => Promise<void>;
   updateHistoryItem: (historyId: string, scannableItem: ScannableItem) => Promise<void>;
+  deleteHistoryItem: (historyId: string) => Promise<void>;
   
   // Captured Images for Multi-Photo Listings
   capturedPhotos: string[];
@@ -632,6 +634,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const deleteHistoryItem = async (historyId: string) => {
+    const updatedHistory = history.filter(item => item.id !== historyId);
+    setHistory(updatedHistory);
+    await deleteSQLiteHistoryItem(historyId);
+  };
+
   const resetAllData = async () => {
     await AsyncStorage.clear();
     await wipeAllSQLiteData();
@@ -724,6 +732,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ebaySandboxMode,
         setEbaySandboxMode,
         updateHistoryItem,
+        deleteHistoryItem,
       }}
     >
       {children}

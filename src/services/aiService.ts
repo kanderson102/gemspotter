@@ -95,20 +95,21 @@ export const recognizeItem = async (
   apiKey: string,
   imageUris: string[],
   aiProvider: 'openai' | 'anthropic' = 'openai',
-  aiModel: string = 'gpt-4o-mini'
+  aiModel: string = 'gpt-4o-mini',
+  textHint?: string
 ): Promise<Partial<ScannableItem>> => {
   const trimmedKey = apiKey ? apiKey.trim() : '';
   if (!trimmedKey) {
     // If no key is set, wait 1.5s to simulate network latency, then return a random mock item
     await new Promise(resolve => setTimeout(resolve, 1500));
     return {
-      title: 'Identified Vintage Item (Simulated)',
+      title: textHint ? `Simulated: ${textHint}` : 'Identified Vintage Item (Simulated)',
       category: 'Clothing & Accessories > Vintage',
       cogs: 5.00,
       weightClass: 'Medium',
-      description: 'A beautiful simulated vintage item detected from photo.',
-      suggestedTitle: 'Vintage Retro Collectible Item Rare Find',
-      suggestedDescription: 'Excellent vintage item in great condition. Shows minor cosmetic wear from age, adding to its retro charm. Tested and verified.',
+      description: textHint ? `A beautiful simulated item: ${textHint}.` : 'A beautiful simulated vintage item detected from photo.',
+      suggestedTitle: textHint ? `Vintage Retro ${textHint} Rare Find` : 'Vintage Retro Collectible Item Rare Find',
+      suggestedDescription: textHint ? `Excellent vintage ${textHint} in great condition. Shows minor cosmetic wear from age, adding to its retro charm. Tested and verified.` : 'Excellent vintage item in great condition. Shows minor cosmetic wear from age, adding to its retro charm. Tested and verified.',
       tags: ['vintage', 'retro', 'collectible', 'thrift-find'],
     };
   }
@@ -120,6 +121,7 @@ export const recognizeItem = async (
       contentPayload.push({
         type: 'text',
         text: `Identify the object in these images and return a JSON object ONLY. Do not write markdown tags around the JSON.
+        ${textHint ? `The user provided the following additional details about this item to help you identify it: "${textHint}". Prioritize using this user details hint to identify the exact model, size, brand, and specifications of the item.` : ''}
         The JSON object must match this schema:
         {
           "title": "Clean concise name of the identified item (brand, model, size if visible)",
@@ -155,6 +157,7 @@ export const recognizeItem = async (
       contentPayload.push({
         type: 'text',
         text: `Identify the object in these images and return a JSON object ONLY. Do not write markdown tags around the JSON.
+        ${textHint ? `The user provided the following additional details about this item to help you identify it: "${textHint}". Prioritize using this user details hint to identify the exact model, size, brand, and specifications of the item.` : ''}
         The JSON object must match this schema:
         {
           "title": "Clean concise name of the identified item (brand, model, size if visible)",

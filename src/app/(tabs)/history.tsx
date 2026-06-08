@@ -11,13 +11,13 @@ import {
 } from 'react-native';
 import { useApp, ScanHistoryItem } from '../../context/AppContext';
 import { COLORS } from '../../constants/theme';
-import { History, ArrowRight, Zap, FolderPlus, HelpCircle, Check } from 'lucide-react-native';
+import { History, ArrowRight, Zap, FolderPlus, HelpCircle, Check, Trash2 } from 'lucide-react-native';
 import { ValuationSheet } from '../../components/ValuationSheet';
 import { ListingSheet } from '../../components/ListingSheet';
 import { getShippingCost, getEbayFeeRate } from '../../services/shippingService';
 
 export default function ScanHistoryScreen() {
-  const { history, performScan, activeScan, setActiveScan, logToInventory, inventory, isLiveMode, updateHistoryItem } = useApp();
+  const { history, performScan, activeScan, setActiveScan, logToInventory, inventory, isLiveMode, updateHistoryItem, deleteHistoryItem } = useApp();
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<ScanHistoryItem | null>(null);
   
   const filteredHistory = isLiveMode ? history.filter(item => !item.isMock) : history;
@@ -50,6 +50,21 @@ export default function ScanHistoryScreen() {
     // Keep isMock status same when logging to inventory
     logToInventory(item.scannableItem, item.isMock);
     Alert.alert('Success', `${item.scannableItem.title} added to your Inventory!`);
+  };
+
+  const handleDeletePress = (id: string) => {
+    Alert.alert(
+      'Delete Scan',
+      'Are you sure you want to permanently delete this item from your scan history?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive', 
+          onPress: () => deleteHistoryItem(id) 
+        }
+      ]
+    );
   };
 
   return (
@@ -105,18 +120,27 @@ export default function ScanHistoryScreen() {
                     ${profit > 0 ? profit.toFixed(2) : '0.00'}
                   </Text>
                   
-                  {inventory.some(invItem => invItem.title.toLowerCase() === item.scannableItem.title.toLowerCase()) ? (
-                    <View style={[styles.quickLogBtn, styles.quickLogBtnDisabled]}>
-                      <Check color={COLORS.accentEmerald} size={16} />
-                    </View>
-                  ) : (
+                  <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
                     <TouchableOpacity
-                      style={styles.quickLogBtn}
-                      onPress={() => handleLogQuick(item)}
+                      style={styles.deleteCardBtn}
+                      onPress={() => handleDeletePress(item.id)}
                     >
-                      <FolderPlus color={COLORS.accentCyan} size={16} />
+                      <Trash2 color={COLORS.accentRose} size={14} />
                     </TouchableOpacity>
-                  )}
+
+                    {inventory.some(invItem => invItem.title.toLowerCase() === item.scannableItem.title.toLowerCase()) ? (
+                      <View style={[styles.quickLogBtn, styles.quickLogBtnDisabled, { marginTop: 0 }]}>
+                        <Check color={COLORS.accentEmerald} size={14} />
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={[styles.quickLogBtn, { marginTop: 0 }]}
+                        onPress={() => handleLogQuick(item)}
+                      >
+                        <FolderPlus color={COLORS.accentCyan} size={14} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
               </TouchableOpacity>
             );
@@ -323,5 +347,14 @@ const styles = StyleSheet.create({
   quickLogBtnDisabled: {
     backgroundColor: 'rgba(16, 185, 129, 0.08)',
     borderColor: 'rgba(16, 185, 129, 0.2)',
+  },
+  deleteCardBtn: {
+    backgroundColor: 'rgba(244, 63, 94, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(244, 63, 94, 0.15)',
+    borderRadius: 6,
+    padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

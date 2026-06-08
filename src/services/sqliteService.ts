@@ -213,6 +213,19 @@ export const saveSQLiteHistoryItem = async (item: ScanHistoryItem): Promise<void
 };
 
 /**
+ * Deletes a scan history item from SQLite.
+ */
+export const deleteSQLiteHistoryItem = async (id: string): Promise<void> => {
+  try {
+    const db = await getSQLiteDB();
+    await db.runAsync('DELETE FROM history WHERE id = ?', [id]);
+  } catch (error) {
+    console.error('SQLite deleteSQLiteHistoryItem Error:', error);
+    throw error;
+  }
+};
+
+/**
  * Wipes all tables from the local database (diagnostics).
  */
 export const wipeAllSQLiteData = async (): Promise<void> => {

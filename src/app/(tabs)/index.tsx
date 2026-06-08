@@ -11,6 +11,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -47,6 +48,7 @@ export default function SourcingCameraScreen() {
   const [selectedMock, setSelectedMock] = useState<ScannableItem>(MOCK_SCANNABLE_ITEMS[0]);
   const [isScanning, setIsScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState('Standby');
+  const [textHint, setTextHint] = useState('');
   const [flashActive, setFlashActive] = useState(false);
   const [flashMode, setFlashMode] = useState<'off' | 'on' | 'auto'>('off');
   const [zoom, setZoom] = useState(0);
@@ -277,6 +279,10 @@ export default function SourcingCameraScreen() {
           scannedItem = {
             ...targetMock,
             imageUrl: primaryPhotoUri,
+            title: textHint.trim() ? `Simulated: ${textHint.trim()}` : targetMock.title,
+            suggestedTitle: textHint.trim() ? `Vintage Retro ${textHint.trim()} Rare Find` : targetMock.suggestedTitle,
+            description: textHint.trim() ? `Simulated vintage item: ${textHint.trim()}` : targetMock.description,
+            suggestedDescription: textHint.trim() ? `This is a high quality simulated ${textHint.trim()} in excellent condition.` : targetMock.suggestedDescription,
           };
         } else {
           // Call active AI Vision service with all photos
@@ -285,7 +291,8 @@ export default function SourcingCameraScreen() {
             isLiveMode ? activeKey : '',
             photoUris,
             aiProvider,
-            aiModel
+            aiModel,
+            textHint.trim()
           );
 
           scannedItem = {
@@ -309,6 +316,7 @@ export default function SourcingCameraScreen() {
 
         if (success) {
           setValuationVisible(true);
+          setTextHint('');
         }
       } catch (err: any) {
         setIsScanning(false);
@@ -533,6 +541,20 @@ export default function SourcingCameraScreen() {
                 );
               })}
             </ScrollView>
+          </View>
+        )}
+
+        {/* Custom Search Hints */}
+        {!isScanning && (
+          <View style={styles.hintInputContainer}>
+            <TextInput
+              style={styles.hintInput}
+              value={textHint}
+              onChangeText={setTextHint}
+              placeholder="Add details (e.g. 55-inch, 128GB, Model #)"
+              placeholderTextColor={COLORS.textSecondary}
+              autoCapitalize="none"
+            />
           </View>
         )}
 
@@ -1101,6 +1123,20 @@ const styles = StyleSheet.create({
     color: COLORS.accentCyan,
     fontSize: 20,
     fontWeight: '600',
+  },
+  hintInputContainer: {
+    marginBottom: 12,
+    marginHorizontal: 4,
+  },
+  hintInput: {
+    backgroundColor: 'rgba(5, 7, 12, 0.6)',
+    borderWidth: 1,
+    borderColor: COLORS.borderCard,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    color: 'white',
+    fontSize: 13,
   },
 });
 

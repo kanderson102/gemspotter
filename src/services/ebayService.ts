@@ -137,6 +137,49 @@ export const refreshEbayUserToken = async (
 };
 
 /**
+ * Generates an array of progressively more general query strings by removing descriptive noise 
+ * words or taking smaller sub-phrases of the original query.
+ */
+export const getFallbackQueries = (query: string): string[] => {
+  const fallbacks: string[] = [];
+  const words = query.split(/\s+/).filter(Boolean);
+  if (words.length <= 1) return fallbacks;
+
+  const noiseWords = new Set([
+    'rare', 'vintage', 'custom', 'handmade', 'antique', 'retro', 'collectible', 
+    'old', 'new', 'used', 'great', 'condition', 'authentic', 'original',
+    'blue', 'red', 'green', 'black', 'white', 'yellow', 'pink', 'orange', 'purple', 
+    'brown', 'grey', 'gray', 'gold', 'silver', 'small', 'medium', 'large', 
+    'tiny', 'huge', 'mini', 'xl', 'l', 'm', 's', 'xs', 'authentic', 'genuine', 'item'
+  ]);
+
+  // Fallback 1: Strip noise words
+  const cleanWords = words.filter(w => !noiseWords.has(w.toLowerCase()));
+  if (cleanWords.length > 0 && cleanWords.length < words.length) {
+    fallbacks.push(cleanWords.join(' '));
+  }
+
+  // Fallback 2: Take the last 2 or 3 words (usually the core noun phrase)
+  if (words.length > 2) {
+    fallbacks.push(words.slice(-2).join(' '));
+  }
+  if (words.length > 3) {
+    fallbacks.push(words.slice(-3).join(' '));
+  }
+
+  // Fallback 3: Take the last word
+  if (words.length > 1) {
+    fallbacks.push(words[words.length - 1]);
+  }
+
+  // Deduplicate and filter out empty or identical to original
+  const uniqueFallbacks = Array.from(new Set(fallbacks))
+    .filter(f => f && f.trim() && f.toLowerCase() !== query.toLowerCase());
+
+  return uniqueFallbacks;
+};
+
+/**
  * Search eBay recently sold listings to calculate real-time comps.
  * Fallbacks to generated local items based on weightClass and title query if keys are missing.
  */
@@ -207,7 +250,33 @@ export const searchSoldComps = async (
     }
 
     const data = await response.json();
-    const items = data.itemSummaries || [];
+    let items = data.itemSummaries || [];
+
+    // Fallback logic for 0 results
+    if (items.length === 0) {
+      const fallbacks = getFallbackQueries(query);
+      for (const fallbackQuery of fallbacks) {
+        console.log(`eBay Search: 0 results for "${query}". Trying fallback: "${fallbackQuery}"`);
+        const fallbackUrl = `${searchBaseUrl}/buy/browse/v1/item_summary/search?q=${encodeURIComponent(fallbackQuery)}&filter=buyingOptions:{FIXED_PRICE}&limit=10`;
+        const fbResponse = await fetch(fallbackUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (fbResponse.ok) {
+          const fbData = await fbResponse.json();
+          const fbItems = fbData.itemSummaries || [];
+          if (fbItems.length > 0) {
+            items = fbItems;
+            console.log(`eBay Search: Found ${fbItems.length} fallback results using: "${fallbackQuery}"`);
+            break; // Stop at first successful fallback query
+          }
+        }
+      }
+    }
 
     return items.map((item: any, index: number) => {
       const priceVal = parseFloat(item.price?.value) || 20.00;

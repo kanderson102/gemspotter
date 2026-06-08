@@ -42,6 +42,7 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
   const [added, setAdded] = useState(false);
   const [comps, setComps] = useState<eBayComp[]>(item.comps || []);
   const [loadingComps, setLoadingComps] = useState(false);
+  const [customSearchQuery, setCustomSearchQuery] = useState(item.suggestedTitle || item.title);
   const translateY = useRef(new Animated.Value(0)).current;
 
   // Fetch comps on open or update
@@ -51,7 +52,7 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
       const results = await searchSoldComps(
         isLiveMode ? ebayClientId : '',
         isLiveMode ? ebayClientSecret : '',
-        title || item.title,
+        customSearchQuery || title || item.title,
         weightClass,
         ebaySandboxMode
       );
@@ -71,6 +72,7 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
     setWeightClass(item.weightClass);
     setAdded(false);
     setComps(item.comps || []);
+    setCustomSearchQuery(item.suggestedTitle || item.title);
   }, [item]);
 
   // Trigger search on sheet open
@@ -266,11 +268,27 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
 
             {/* eBay comps */}
             <View style={styles.compsSection}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <Text style={styles.sectionHeader}>Smart Comps ({isLiveMode ? 'eBay Live Sold' : 'Simulated'})</Text>
-                <TouchableOpacity onPress={fetchComps} disabled={loadingComps} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <RefreshCw color={COLORS.accentCyan} size={12} />
-                  <Text style={{ color: COLORS.accentCyan, fontSize: 10, fontWeight: '700' }}>Refresh</Text>
+              </View>
+
+              {/* Refine Search Input Bar */}
+              <View style={styles.refineSearchRow}>
+                <TextInput
+                  style={styles.refineInput}
+                  value={customSearchQuery}
+                  onChangeText={setCustomSearchQuery}
+                  placeholder="Refine search query (e.g. glass cutting board)"
+                  placeholderTextColor={COLORS.textSecondary}
+                  onSubmitEditing={fetchComps}
+                />
+                <TouchableOpacity 
+                  onPress={fetchComps} 
+                  disabled={loadingComps} 
+                  style={[styles.refineRefreshBtn, loadingComps && { opacity: 0.6 }]}
+                >
+                  <RefreshCw color={COLORS.bgDeep} size={12} />
+                  <Text style={styles.refineRefreshText}>Search</Text>
                 </TouchableOpacity>
               </View>
 
@@ -616,5 +634,35 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  refineSearchRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  refineInput: {
+    flex: 1,
+    backgroundColor: 'rgba(5, 7, 12, 0.5)',
+    borderWidth: 1,
+    borderColor: COLORS.borderCard,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    color: 'white',
+    fontSize: 13,
+  },
+  refineRefreshBtn: {
+    backgroundColor: COLORS.accentCyan,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 4,
+  },
+  refineRefreshText: {
+    color: COLORS.bgDeep,
+    fontSize: 12,
+    fontWeight: '700',
   },
 });
