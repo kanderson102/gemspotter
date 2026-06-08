@@ -6,11 +6,13 @@ Gemspotter is an AI-powered Android app helping thrift store resellers with eBay
 
 ## 🚀 Key Features
 
-- **AI Sourcing Camera**: Launch the device camera, capture item images, and simulate a smart image scan targeting your thrift finds.
-- **Valuation Dashboard (Bottom Sheet)**: Instantly analyze potential net profits, estimated eBay sold comps, platform fees, and ROI percentage. Includes custom COGS adjustments and shipping weight selectors.
-- **AI Listing Assistant**: Generates studio-quality background-removed previews and SEO-optimized titles, descriptions, and tag descriptors.
-- **Scan History Sourcing Log**: Keep track of deferred sourcing scans. Integrates instant quick-logging with duplicates checking to prevent double entries in the ledger.
-- **Business Health Dashboard**: Live financial tracking of total net profits, sell-through percentage, average ROI, and active stock counts.
+- **AI Sourcing Camera**: Capture item photos and run a Vision AI scan to identify thrift finds. Supports optional **Custom Details Hints** (size, model, storage, specs) to guide the AI during initial identification.
+- **Valuation Dashboard (Bottom Sheet)**: Instantly analyze potential net profits, estimated eBay sold comps, platform fees, and ROI.
+- **Dynamic Search Refinement**: A dedicated **Refine Comps Search** bar lets you modify the terms queried on eBay to find the exact item comps without changing the final listing title.
+- **Smart Comps Fallback**: Automatically tries generalized search variations if a highly specific query returns zero results on eBay, preventing zero-profit errors.
+- **AI Listing Assistant**: Generates background-removed photos and drafts SEO-optimized titles, descriptions, and tag descriptors.
+- **Scan History Sourcing Log**: Track scanned items, log them to your inventory ledger, or permanently delete logs.
+- **Business Health Dashboard**: Track total net profits, sell-through rate, average ROI, and active stock counts.
 
 ---
 
@@ -63,18 +65,22 @@ When EAS completes, it outputs a download link and QR code hosted on your **expo
 
 ---
 
-## 🔑 eBay Seller Account Integration (OAuth 2.0)
+## 🔑 eBay Seller Account Integration (OAuth 2.0 & Account API)
 
 Gemspotter utilizes two distinct eBay API authentication flows:
 1. **Application-Only Flow (Client Credentials)**: Authenticates the application to search recently sold items and compute pricing metrics using the eBay Browse API.
 2. **User Authorization Flow (OAuth 2.0)**: Securely links your personal eBay seller account. This allows you to publish generated drafts (with background-removed images, SEO titles, descriptions, and categories) directly to your eBay storefront via the modern eBay Inventory API.
+
+### Multi-Environment & Automated Policies:
+- **Dual Sandbox / Production Keystores:** Keep Sandbox and Live credentials completely separate with one-tap environment switching.
+- **Automated Business Policies Retrieval:** Programmatically queries eBay's Account API to fetch your payment, return, and shipping policies, auto-assigning them to your published offers so you don't have to manually locate policy IDs.
 
 ### RuName & Login Configuration Steps:
 1. Register for an account on the [eBay Developer Portal](https://developer.ebay.com/).
 2. Generate your application **Client ID (App ID)** and **Client Secret (Cert ID)**.
 3. Configure your **RuName (Redirect URI Name)** in your eBay developer account settings under the Redirect Registry (ensuring you select **OAuth** instead of the legacy **Auth\'n\'Auth**), and set the Redirect URL (both accepted and declined) to: `https://kanderson102.github.io/gemspotter/`
 4. Input your Client ID, Client Secret, and RuName on the **Settings** screen in Gemspotter.
-5. Tap **Link eBay Seller Account** to open a secure browser session, log in to your eBay account, and grant access. 
+5. Tap **Link eBay Seller Account** to open a secure browser session, log in to your eBay account, and grant access (requests `sell.inventory` and `sell.account.readonly` scopes). 
 6. Tokens are stored locally. The app automatically handles token expiration checks and refreshes your session on-demand before publishing listing drafts.
 
 ---
