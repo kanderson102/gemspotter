@@ -661,25 +661,46 @@ export default function SettingsScreen() {
                 {showPolicyHelp && (
                   <View style={[styles.helpContainer, { marginBottom: 12, gap: 6 }]}>
                     <Text style={styles.helpTitle}>How to find eBay Business Policy IDs:</Text>
+                    
                     <Text style={styles.helpText}>
-                      1. Log in to your eBay account on the web:
+                      1. Log in to your eBay account on the web and visit:
                     </Text>
                     <TouchableOpacity onPress={() => Linking.openURL(ebaySandboxMode ? 'https://www.bizpolicy.sandbox.ebay.com/businesspolicy/manage' : 'https://www.bizpolicy.ebay.com/businesspolicy/manage')}>
                       <Text style={[styles.helpText, { color: COLORS.accentCyan, textDecorationLine: 'underline', paddingLeft: 10 }]}>
                         {ebaySandboxMode ? 'Open eBay Sandbox Business Policies ↗' : 'Open eBay Live Business Policies ↗'}
                       </Text>
                     </TouchableOpacity>
+
                     <Text style={styles.helpText}>
-                      2. If you don't see your policies listed, click the link to <Text style={styles.helpBold}>opt-in</Text> to eBay Business Policies on your account.
+                      2. If the link above fails or you haven't enabled Business Policies yet, use the direct opt-in link:
+                    </Text>
+                    <TouchableOpacity onPress={() => Linking.openURL(ebaySandboxMode ? 'https://www.bizpolicy.sandbox.ebay.com/businesspolicy/policyoptin' : 'https://www.bizpolicy.ebay.com/businesspolicy/policyoptin')}>
+                      <Text style={[styles.helpText, { color: COLORS.accentCyan, textDecorationLine: 'underline', paddingLeft: 10 }]}>
+                        {ebaySandboxMode ? 'Direct Sandbox Opt-in Page ↗' : 'Direct Live Opt-in Page ↗'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <Text style={[styles.helpText, { color: COLORS.accentAmber, marginTop: 4, fontWeight: '700' }]}>
+                      ⚠️ Browser Troubleshooting (Brave / Adblockers):
+                    </Text>
+                    <Text style={[styles.helpText, { paddingLeft: 10, fontSize: 11 }]}>
+                      • <Text style={{ fontWeight: '700' }}>Brave Shields / Adblockers:</Text> If using Brave Browser, you MUST turn off "Brave Shields" for eBay. Brave blocks the session/cookie scripts eBay requires to load this dashboard, causing eBay to crash with "Something went wrong on our end".
+                    </Text>
+                    <Text style={[styles.helpText, { paddingLeft: 10, fontSize: 11 }]}>
+                      • <Text style={{ fontWeight: '700' }}>Private Tabs:</Text> If the page still doesn't load, try opening it in an Incognito/Private window, or clear your browser cookies and cache.
+                    </Text>
+                    <Text style={[styles.helpText, { paddingLeft: 10, fontSize: 11 }]}>
+                      • <Text style={{ fontWeight: '700' }}>Wrong Account:</Text> Ensure you are logged into your correct active seller account in the browser before visiting the links.
+                    </Text>
+
+                    <Text style={[styles.helpText, { marginTop: 6 }]}>
+                      3. **Click on the title** of any active policy (Shipping, Payment, or Return) to view its details.
                     </Text>
                     <Text style={styles.helpText}>
-                      3. **Click on the title** of any of your active policies (Shipping, Payment, or Return) to edit/view it.
+                      4. Look at the browser's address bar. The URL will contain a parameter like <Text style={styles.helpBold}>profileId=XXXXXXXXXXXX</Text> (a 10-12 digit number).
                     </Text>
                     <Text style={styles.helpText}>
-                      4. Look at your browser's address bar. The URL will contain a parameter like <Text style={styles.helpBold}>profileId=XXXXXXXXXXXX</Text> (a 10-12 digit number).
-                    </Text>
-                    <Text style={styles.helpText}>
-                      5. Copy that number and paste it into the corresponding field below.
+                      5. Copy that numeric ID and paste it into the corresponding field below.
                     </Text>
                   </View>
                 )}
