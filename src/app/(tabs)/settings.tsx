@@ -81,6 +81,7 @@ export default function SettingsScreen() {
   const [showEbayHelp, setShowEbayHelp] = useState(false);
   const [manualAuthCode, setManualAuthCode] = useState('');
   const [showManualToken, setShowManualToken] = useState(false);
+  const [showPolicyHelp, setShowPolicyHelp] = useState(false);
 
   const handleResetData = () => {
     Alert.alert(
@@ -645,12 +646,44 @@ export default function SettingsScreen() {
               {/* Optional Policy IDs fields */}
               <View style={{ marginTop: 16, borderTopWidth: 1, borderTopColor: COLORS.borderCard, paddingTop: 16 }}>
                 <Text style={[styles.fieldSectionTitle, { color: COLORS.accentCyan, fontSize: 11, marginBottom: 4 }]}>
-                  Custom eBay Listing Policy IDs (Optional)
+                  Custom eBay Listing Policy IDs
                 </Text>
-                <Text style={[styles.toggleDesc, { color: COLORS.textSecondary, marginBottom: 8 }]}>
-                  Enter the numeric policy IDs configured on your eBay sandbox/live seller profile. If left blank, Gemspotter uses placeholders.
+                <Text style={[styles.toggleDesc, { color: COLORS.textSecondary, marginBottom: 4 }]}>
+                  Enter the numeric policy IDs configured on your eBay sandbox/live seller profile. These are required by eBay to publish listings on your behalf.
                 </Text>
-                
+
+                <TouchableOpacity onPress={() => setShowPolicyHelp(!showPolicyHelp)}>
+                  <Text style={[styles.setupLinkText, { marginBottom: 12 }]}>
+                    {showPolicyHelp ? 'Hide Instructions' : 'How to find your Business Policy IDs? ↗'}
+                  </Text>
+                </TouchableOpacity>
+
+                {showPolicyHelp && (
+                  <View style={[styles.helpContainer, { marginBottom: 12, gap: 6 }]}>
+                    <Text style={styles.helpTitle}>How to find eBay Business Policy IDs:</Text>
+                    <Text style={styles.helpText}>
+                      1. Log in to your eBay account on the web:
+                    </Text>
+                    <TouchableOpacity onPress={() => Linking.openURL(ebaySandboxMode ? 'https://www.bizpolicy.sandbox.ebay.com/businesspolicy/manage' : 'https://www.bizpolicy.ebay.com/businesspolicy/manage')}>
+                      <Text style={[styles.helpText, { color: COLORS.accentCyan, textDecorationLine: 'underline', paddingLeft: 10 }]}>
+                        {ebaySandboxMode ? 'Open eBay Sandbox Business Policies ↗' : 'Open eBay Live Business Policies ↗'}
+                      </Text>
+                    </TouchableOpacity>
+                    <Text style={styles.helpText}>
+                      2. If you don't see your policies listed, click the link to <Text style={styles.helpBold}>opt-in</Text> to eBay Business Policies on your account.
+                    </Text>
+                    <Text style={styles.helpText}>
+                      3. **Click on the title** of any of your active policies (Shipping, Payment, or Return) to edit/view it.
+                    </Text>
+                    <Text style={styles.helpText}>
+                      4. Look at your browser's address bar. The URL will contain a parameter like <Text style={styles.helpBold}>profileId=XXXXXXXXXXXX</Text> (a 10-12 digit number).
+                    </Text>
+                    <Text style={styles.helpText}>
+                      5. Copy that number and paste it into the corresponding field below.
+                    </Text>
+                  </View>
+                )}
+
                 <Text style={styles.manualCodeLabel}>Fulfillment Policy ID (Shipping):</Text>
                 <TextInput
                   style={styles.fieldInput}
