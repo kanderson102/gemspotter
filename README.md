@@ -2,17 +2,42 @@
 
 Gemspotter is an AI-powered Android app helping thrift store resellers with eBay sourcing, market research, and business analytics. It integrates item camera and photo sourcing, eBay market comps valuation, automated SEO listing draft generation, and reseller profit ledger tracking in a single workflow.
 
+<p align="center">
+  <img src="screenshots/sourcing_camera_mockup.png" width="350" alt="Gemspotter AI Sourcing Camera Mockup" />
+</p>
+
 ---
 
 ## 🚀 Key Features
 
 - **AI Sourcing Camera**: Capture item photos and run a Vision AI scan to identify thrift finds. Supports optional **Custom Details Hints** (size, model, storage, specs) to guide the AI during initial identification.
 - **Valuation Dashboard (Bottom Sheet)**: Instantly analyze potential net profits, estimated eBay sold comps, platform fees, and ROI.
+  
+  <p align="center">
+    <img src="screenshots/valuation_top_mockup.png" width="240" alt="Valuation Overview" />&nbsp;&nbsp;&nbsp;&nbsp;
+    <img src="screenshots/valuation_bottom_mockup.png" width="240" alt="Valuation Comps" />
+  </p>
+
 - **Dynamic Search Refinement**: A dedicated **Refine Comps Search** bar lets you modify the terms queried on eBay to find the exact item comps without changing the final listing title.
 - **Smart Comps Fallback**: Automatically tries generalized search variations if a highly specific query returns zero results on eBay, preventing zero-profit errors.
 - **AI Listing Assistant**: Generates background-removed photos and drafts SEO-optimized titles, descriptions, and tag descriptors.
+  
+  <p align="center">
+    <img src="screenshots/listing_top_mockup.png" width="240" alt="Listing Assistant Top" />&nbsp;&nbsp;&nbsp;&nbsp;
+    <img src="screenshots/listing_bottom_mockup.png" width="240" alt="Listing Assistant Bottom" />
+  </p>
+
 - **Scan History Sourcing Log**: Track scanned items, log them to your inventory ledger, or permanently delete logs.
-- **Business Health Dashboard**: Track total net profits, sell-through rate, average ROI, and active stock counts.
+  
+  <p align="center">
+    <img src="screenshots/history_mockup.png" width="240" alt="Scan History Log" />
+  </p>
+
+- **Business Health & Inventory Log**: Track total net profits, sell-through rate, average ROI, active stock counts, and item ledger status.
+  
+  <p align="center">
+    <img src="screenshots/inventory_mockup.png" width="240" alt="Inventory Log & Ledger" />
+  </p>
 
 ---
 
@@ -83,6 +108,12 @@ Gemspotter utilizes two distinct eBay API authentication flows:
 5. Tap **Link eBay Seller Account** to open a secure browser session, log in to your eBay account, and grant access (requests `sell.inventory` and `sell.account.readonly` scopes). 
 6. Tokens are stored locally. The app automatically handles token expiration checks and refreshes your session on-demand before publishing listing drafts.
 
+<p align="center">
+  <img src="screenshots/settings_api_mockup.png" width="180" alt="Settings API Keys" />&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="screenshots/settings_oauth_mockup.png" width="180" alt="Settings OAuth Integration" />&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="screenshots/settings_dev_mockup.png" width="180" alt="Settings Custom Policies" />
+</p>
+
 ---
 
 ## 🔒 Security & Key Management
@@ -96,3 +127,5 @@ Gemspotter utilizes two distinct eBay API authentication flows:
 ## 📝 Developer Controls
 
 On the **Settings** screen, scroll down to **Developer Controls** to clear local storage diagnostics. Tapping **Clear AsyncStorage Data** wipes the local cache and resets the app state back to defaults.
+
+
