@@ -216,6 +216,9 @@ export default function InventoryScreen() {
         suggestedTitle: item.suggestedTitle || item.title,
         suggestedDescription: item.suggestedDescription || '',
         tags: item.tags || matched.tags || [],
+        comps: item.comps || matched.comps || [],
+        customSearchQuery: item.customSearchQuery || matched.customSearchQuery || undefined,
+        price: item.price,
       };
     }
     
@@ -230,7 +233,9 @@ export default function InventoryScreen() {
       suggestedDescription: item.suggestedDescription || '',
       tags: item.tags || [],
       imageUrl: item.imageUrl || 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=500&auto=format&fit=crop&q=80',
-      comps: [],
+      comps: item.comps || [],
+      customSearchQuery: item.customSearchQuery || undefined,
+      price: item.price,
     };
   };
 

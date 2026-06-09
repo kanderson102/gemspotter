@@ -38,7 +38,10 @@ export const initSQLiteDB = async (): Promise<void> => {
         createdAt TEXT,
         soldPrice REAL,
         shippingCost REAL,
-        isMock INTEGER DEFAULT 0
+        isMock INTEGER DEFAULT 0,
+        customSearchQuery TEXT,
+        comps TEXT,
+        price REAL
       );
     `);
 
@@ -66,6 +69,27 @@ export const initSQLiteDB = async (): Promise<void> => {
     try {
       await db.execAsync('ALTER TABLE history ADD COLUMN isMock INTEGER DEFAULT 0;');
       console.log('SQLite: Migrated history table, added isMock column.');
+    } catch (e) {
+      // Column already exists, safe to ignore
+    }
+
+    try {
+      await db.execAsync('ALTER TABLE inventory ADD COLUMN customSearchQuery TEXT;');
+      console.log('SQLite: Migrated inventory table, added customSearchQuery column.');
+    } catch (e) {
+      // Column already exists, safe to ignore
+    }
+
+    try {
+      await db.execAsync('ALTER TABLE inventory ADD COLUMN comps TEXT;');
+      console.log('SQLite: Migrated inventory table, added comps column.');
+    } catch (e) {
+      // Column already exists, safe to ignore
+    }
+
+    try {
+      await db.execAsync('ALTER TABLE inventory ADD COLUMN price REAL;');
+      console.log('SQLite: Migrated inventory table, added price column.');
     } catch (e) {
       // Column already exists, safe to ignore
     }
@@ -101,6 +125,9 @@ export const loadAllInventory = async (): Promise<InventoryItem[]> => {
       soldPrice: row.soldPrice !== null ? row.soldPrice : undefined,
       shippingCost: row.shippingCost !== null ? row.shippingCost : undefined,
       isMock: row.isMock === 1,
+      customSearchQuery: row.customSearchQuery || undefined,
+      comps: row.comps ? JSON.parse(row.comps) : undefined,
+      price: row.price !== null ? row.price : undefined,
     }));
   } catch (error) {
     console.error('SQLite loadAllInventory Error:', error);
@@ -118,8 +145,9 @@ export const saveSQLiteInventoryItem = async (item: InventoryItem): Promise<void
       `INSERT OR REPLACE INTO inventory (
         id, title, category, cogs, weightClass, description, 
         suggestedTitle, suggestedDescription, tags, imageUrl, 
-        status, createdAt, soldPrice, shippingCost, isMock
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        status, createdAt, soldPrice, shippingCost, isMock,
+        customSearchQuery, comps, price
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         item.id,
         item.title,
@@ -136,6 +164,9 @@ export const saveSQLiteInventoryItem = async (item: InventoryItem): Promise<void
         item.soldPrice !== undefined ? item.soldPrice : null,
         item.shippingCost !== undefined ? item.shippingCost : null,
         item.isMock ? 1 : 0,
+        item.customSearchQuery || null,
+        item.comps ? JSON.stringify(item.comps) : null,
+        item.price !== undefined ? item.price : null,
       ]
     );
   } catch (error) {

@@ -91,7 +91,7 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
   const [photos, setPhotos] = useState<string[]>([]);
 
   const translateY = useRef(new Animated.Value(0)).current;
-  const handleCancelRef = useRef<() => void>(() => {});
+  const handleCloseRef = useRef<() => void>(() => {});
 
   // Reset translateY when sheet opens
   useEffect(() => {
@@ -113,7 +113,7 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
       },
       onPanResponderRelease: (evt, gestureState) => {
         if (!loading && (gestureState.dy > 120 || gestureState.vy > 0.5)) {
-          handleCancelRef.current();
+          handleCloseRef.current();
         } else {
           Animated.spring(translateY, {
             toValue: 0,
@@ -200,7 +200,9 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
       
       const compsCount = item.comps ? item.comps.length : 0;
       const avgPrice = compsCount > 0 ? item.comps.reduce((sum, comp) => sum + comp.price, 0) / compsCount : 0;
-      const suggestedPrice = avgPrice > 0 ? avgPrice : (item.cogs > 0 ? item.cogs * 1.5 : 29.99);
+      const suggestedPrice = item.price !== undefined && item.price > 0
+        ? item.price
+        : (avgPrice > 0 ? avgPrice : (item.cogs > 0 ? item.cogs * 1.5 : 29.99));
       setPrice(suggestedPrice.toFixed(2));
       
       setLoading(false);
@@ -228,8 +230,8 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
     setPhotos(photos.filter((_, i) => i !== index));
   };
 
-  // Auto-save confirm prompt when dismissing or cancelling
-  const handleCancel = () => {
+  // Auto-save and close listing draft
+  const handleClose = async () => {
     const executeClose = () => {
       Animated.timing(translateY, {
         toValue: 800,
@@ -240,86 +242,41 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
       });
     };
 
-    // Check if the item is not yet in the inventory ledger
-    if (!inventoryItemId) {
-      Alert.alert(
-        'Discard Sourced Item?',
-        'This scanned item has not been saved to your inventory ledger yet. Would you like to save it as a local draft first?',
-        [
-          {
-            text: 'Save Draft',
-            onPress: async () => {
-              try {
-                await logToInventory({
-                  ...item,
-                  title,
-                  imageUrl: photos[0],
-                  suggestedTitle: title,
-                  suggestedDescription: description,
-                  tags,
-                  category,
-                  weightClass,
-                });
-                executeClose();
-              } catch (err) {
-                console.error('Failed to log cancel draft:', err);
-                executeClose();
-              }
-            }
-          },
-          {
-            text: 'Discard',
-            style: 'destructive',
-            onPress: executeClose
-          },
-          {
-            text: 'Keep Editing',
-            style: 'cancel'
-          }
-        ]
-      );
-    } else {
-      // Already in inventory, check if title or description was edited
-      const hasChanges = title !== (item.suggestedTitle || item.title) || 
-                         description !== (item.suggestedDescription || '');
-      
-      if (hasChanges) {
-        Alert.alert(
-          'Unsaved Changes',
-          'You have unsaved changes to this listing draft. Would you like to save them to your local ledger?',
-          [
-            {
-              text: 'Save Draft',
-              onPress: async () => {
-                try {
-                  await generateListing(inventoryItemId, title, description, tags, photos[0], 'sourced', category, weightClass);
-                  executeClose();
-                } catch (err) {
-                  console.error('Failed to update cancel draft:', err);
-                  executeClose();
-                }
-              }
-            },
-            {
-              text: 'Discard Changes',
-              style: 'destructive',
-              onPress: executeClose
-            },
-            {
-              text: 'Keep Editing',
-              style: 'cancel'
-            }
-          ]
-        );
+    try {
+      if (!inventoryItemId) {
+        await logToInventory({
+          ...item,
+          title,
+          imageUrl: photos[0],
+          suggestedTitle: title,
+          suggestedDescription: description,
+          tags,
+          category,
+          weightClass,
+          price: parseFloat(price) || undefined,
+        });
       } else {
-        executeClose();
+        await generateListing(
+          inventoryItemId,
+          title,
+          description,
+          tags,
+          photos[0],
+          'sourced',
+          category,
+          weightClass,
+          parseFloat(price) || undefined
+        );
       }
+    } catch (err) {
+      console.error('Failed to auto-save listing draft on close:', err);
     }
+    executeClose();
   };
 
-  // Sync the latest handleCancel reference to avoid PanResponder stale closure
+  // Sync the latest handleClose reference to avoid PanResponder stale closure
   useEffect(() => {
-    handleCancelRef.current = handleCancel;
+    handleCloseRef.current = handleClose;
   });
 
   const handlePublish = async () => {
@@ -349,9 +306,10 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
           tags,
           category,
           weightClass,
+          price: parseFloat(price) || undefined,
         });
       } else {
-        await generateListing(activeItemId, title, description, tags, photos[0], 'sourced', category, weightClass);
+        await generateListing(activeItemId, title, description, tags, photos[0], 'sourced', category, weightClass, parseFloat(price) || undefined);
       }
       
       if (isLiveMode) {
@@ -417,7 +375,7 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
 
           if (result.success) {
             // Update the local item status to listed
-            await generateListing(activeItemId, title, description, tags, photos[0], 'listed', category, weightClass);
+            await generateListing(activeItemId, title, description, tags, photos[0], 'listed', category, weightClass, parseFloat(price) || undefined);
 
             setSaving(false);
             onSuccess();
@@ -445,7 +403,7 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
         }
       } else {
         // Default simulated offline listing
-        const success = await generateListing(activeItemId, title, description, tags, photos[0], 'listed', category, weightClass);
+        const success = await generateListing(activeItemId, title, description, tags, photos[0], 'listed', category, weightClass, parseFloat(price) || undefined);
         setSaving(false);
         if (success) {
           onSuccess();
@@ -458,7 +416,7 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleCancel}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
       <View style={styles.modalOverlay}>
         <Animated.View style={[styles.sheetContent, { transform: [{ translateY }] }]}>
           {/* Drag handle wrapper */}
@@ -473,8 +431,8 @@ export const ListingSheet: React.FC<ListingSheetProps> = ({
               <Text style={styles.title}>AI Listing Assistant</Text>
             </View>
             {!loading && (
-              <TouchableOpacity onPress={handleCancel} style={styles.closeBtn} disabled={saving}>
-                <Text style={styles.closeBtnText}>Cancel</Text>
+              <TouchableOpacity onPress={handleClose} style={styles.closeBtn} disabled={saving}>
+                <Text style={styles.closeBtnText}>Close</Text>
               </TouchableOpacity>
             )}
           </View>

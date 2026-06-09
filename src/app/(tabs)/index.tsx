@@ -43,6 +43,8 @@ export default function SourcingCameraScreen() {
     aiProvider,
     aiModel,
     anthropicApiKey,
+    history,
+    updateHistoryItem,
   } = useApp();
 
   const [selectedMock, setSelectedMock] = useState<ScannableItem>(MOCK_SCANNABLE_ITEMS[0]);
@@ -637,6 +639,10 @@ export default function SourcingCameraScreen() {
             item={activeScan}
             onSave={(updated) => {
               setActiveScan(updated);
+              const histItem = history.find(h => h.scannableItem.id === updated.id);
+              if (histItem) {
+                updateHistoryItem(histItem.id, updated);
+              }
             }}
             onList={() => {
               setValuationVisible(false);

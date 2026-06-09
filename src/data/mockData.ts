@@ -20,6 +20,8 @@ export interface ScannableItem {
   tags: string[];
   imageUrl: string;
   comps: eBayComp[];
+  customSearchQuery?: string;
+  price?: number;
 }
 
 export interface DailyDeal {

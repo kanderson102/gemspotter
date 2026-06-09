@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ScannableItem, MOCK_SCANNABLE_ITEMS } from '../data/mockData';
+import { ScannableItem, MOCK_SCANNABLE_ITEMS, eBayComp } from '../data/mockData';
 import {
   initSQLiteDB,
   loadAllInventory,
@@ -28,6 +28,9 @@ export interface InventoryItem {
   soldPrice?: number;
   shippingCost?: number;
   isMock?: boolean;
+  customSearchQuery?: string;
+  comps?: eBayComp[];
+  price?: number;
 }
 
 export interface ScanHistoryItem {
@@ -53,7 +56,8 @@ export interface AppContextType {
     imageUrl?: string,
     status?: 'sourced' | 'listed' | 'sold',
     category?: string,
-    weightClass?: 'Small' | 'Medium' | 'Large'
+    weightClass?: 'Small' | 'Medium' | 'Large',
+    price?: number
   ) => Promise<boolean>;
   markAsSold: (itemId: string, soldPrice: number, shippingCost: number) => void;
   deleteInventoryItem: (itemId: string) => void;
@@ -485,6 +489,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: 'sourced',
       createdAt: new Date().toISOString(),
       isMock: isMock !== undefined ? isMock : !isLiveMode,
+      customSearchQuery: item.customSearchQuery,
+      comps: item.comps || [],
+      price: item.price,
     };
 
     const updatedInventory = [newItem, ...inventory];
@@ -531,7 +538,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     imageUrl?: string,
     status: 'sourced' | 'listed' | 'sold' = 'listed',
     category?: string,
-    weightClass?: 'Small' | 'Medium' | 'Large'
+    weightClass?: 'Small' | 'Medium' | 'Large',
+    price?: number
   ): Promise<boolean> => {
     let updatedItem: InventoryItem | null = null;
     
@@ -551,6 +559,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           status: status,
           category: category !== undefined ? category : item.category,
           weightClass: weightClass !== undefined ? weightClass : item.weightClass,
+          price: price !== undefined ? price : item.price,
         };
         return updatedItem;
       }
@@ -611,6 +620,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     setHistory(updatedHistory);
+
+    if (activeScan && activeScan.id === scannableItem.id) {
+      setActiveScan(scannableItem);
+    }
 
     if (updatedHistoryItem) {
       await saveSQLiteHistoryItem(updatedHistoryItem);

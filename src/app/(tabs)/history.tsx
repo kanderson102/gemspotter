@@ -162,6 +162,7 @@ export default function ScanHistoryScreen() {
             item={activeScan}
             onSave={(updated) => {
               updateHistoryItem(selectedHistoryItem.id, updated);
+              setActiveScan(updated);
             }}
             onList={() => {
               setValuationVisible(false);

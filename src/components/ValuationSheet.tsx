@@ -42,7 +42,7 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
   const [added, setAdded] = useState(false);
   const [comps, setComps] = useState<eBayComp[]>(item.comps || []);
   const [loadingComps, setLoadingComps] = useState(false);
-  const [customSearchQuery, setCustomSearchQuery] = useState(item.suggestedTitle || item.title);
+  const [customSearchQuery, setCustomSearchQuery] = useState(item.customSearchQuery || item.suggestedTitle || item.title);
   const translateY = useRef(new Animated.Value(0)).current;
 
   // Fetch comps on open or update
@@ -72,14 +72,17 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
     setWeightClass(item.weightClass);
     setAdded(false);
     setComps(item.comps || []);
-    setCustomSearchQuery(item.suggestedTitle || item.title);
+    setCustomSearchQuery(item.customSearchQuery || item.suggestedTitle || item.title);
   }, [item]);
 
   // Trigger search on sheet open
   useEffect(() => {
     if (visible && item) {
       translateY.setValue(0);
-      fetchComps();
+      // Only auto-fetch comps if they are empty
+      if (!item.comps || item.comps.length === 0) {
+        fetchComps();
+      }
     }
   }, [visible, item]);
 
@@ -92,6 +95,7 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
         cogs: parseFloat(cogs) || 0,
         weightClass,
         comps,
+        customSearchQuery,
       });
     }
     onClose();
@@ -148,6 +152,7 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
       cogs: currentCogs,
       weightClass,
       comps, // Save current loaded comps with the inventory item
+      customSearchQuery,
     });
     setAdded(true);
     setTimeout(() => {
@@ -355,6 +360,7 @@ export const ValuationSheet: React.FC<ValuationSheetProps> = ({
                     cogs: parseFloat(cogs) || 0,
                     weightClass,
                     comps,
+                    customSearchQuery,
                   });
                 }
                 onList();
